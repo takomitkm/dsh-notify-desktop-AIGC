@@ -86,6 +86,15 @@ import { adoptStyles } from './styles.ts'
  */
 export const inject = ['sessions', 'slots', 'locale']
 
+/**
+ * The list-row field this half reads beyond the published `SessionListState`:
+ * a delegated child row carries `origin: 'subagent'` (the sidebar hides those
+ * rows by the same field), while an ordinary or forked conversation has none.
+ */
+interface SessionRowOrigin {
+  readonly origin?: 'subagent'
+}
+
 /** The slice of the sessions service this plugin reads. */
 interface SessionsListFace {
   readonly list: {
@@ -177,6 +186,12 @@ export function apply(ctx: ClientContext): void {
       { focusWindow: () => focusWindowRequest(), openSession: (id: string) => workspace?.openSession?.(id) },
       sessionId,
     )
+  }
+
+  /** Whether a session is a delegated child (a `subagent` row on the list). */
+  const isSubagentSession = (sessionId: string): boolean => {
+    const rows = sessions.list.getSnapshot().byId as unknown as Record<string, SessionRowOrigin | undefined>
+    return rows[sessionId]?.origin === 'subagent'
   }
 
   /**
@@ -278,6 +293,8 @@ export function apply(ctx: ClientContext): void {
     readonly source: 'projection' | 'host queue'
     /** The toast title label: the workspace name, or '' when unknown. */
     readonly label: string
+    /** The owning session's list origin, when the caller already knows it. */
+    readonly sessionOrigin?: 'subagent'
   }
 
   /**
@@ -293,6 +310,10 @@ export function apply(ctx: ClientContext): void {
     const settings = store.getSnapshot()
     const now = Date.now()
     const focused = isFocused()
+    const sessionOrigin = ask.sessionOrigin ?? (isSubagentSession(ask.sessionId) ? 'subagent' : undefined)
+    // The `silent` gear drops a child's waits entirely: no toast, and no wait
+    // entry either, so its reminder cannot fire later.
+    const silencedChild = sessionOrigin === 'subagent' && settings.subagentMode === 'silent'
     const where = ask.kind + ' ' + ask.requestId + ' (' + ask.source + ')'
     const shared = askKey(ask.summary)
     if (ask.kind !== 'approval' && recentlyKeyed(recent, shared, now, ASK_TWIN_MS)) {
@@ -303,22 +324,27 @@ export function apply(ctx: ClientContext): void {
       settings,
       trigger: { kind: 'pending', pending: ask.kind },
       sessionId: ask.sessionId,
+      ...(sessionOrigin === undefined ? {} : { sessionOrigin }),
       focused,
       dedupeKey: ask.sessionId + ':request:' + ask.requestId,
       now,
       recent,
     })
-    waits.set(waitKey(ask.sessionId, ask.requestId), {
-      key: waitKey(ask.sessionId, ask.requestId),
-      sessionId: ask.sessionId,
-      requestId: ask.requestId,
-      kind: ask.kind,
-      summary: ask.summary,
-      firstSeenAt: ask.firstSeenAt,
-      reminded: false,
-      lastRemindedAt: 0,
-    })
-    const delivery = decision === null ? 'suppressed' : isSoundOnly(settings) ? 'sound-only' : 'toast'
+    if (!silencedChild) {
+      waits.set(waitKey(ask.sessionId, ask.requestId), {
+        key: waitKey(ask.sessionId, ask.requestId),
+        sessionId: ask.sessionId,
+        requestId: ask.requestId,
+        kind: ask.kind,
+        summary: ask.summary,
+        firstSeenAt: ask.firstSeenAt,
+        reminded: false,
+        lastRemindedAt: 0,
+      })
+    }
+    const delivery = decision === null
+      ? (silencedChild ? 'suppressed (subagent silent)' : 'suppressed')
+      : isSoundOnly(settings) ? 'sound-only' : 'toast'
     report('pending ' + where + ' focused=' + String(focused) + ' -> ' + delivery)
     if (decision === null) return
     const scenario = scenarioOfPending(ask.kind)
@@ -414,6 +440,7 @@ export function apply(ctx: ClientContext): void {
     for (const id of state.ids) {
       const summary = state.byId[id]
       if (summary === undefined) continue
+      const sessionOrigin = (summary as unknown as SessionRowOrigin).origin
       const projection = summary.projectionValues?.[NOTIFY_PROJECTION_KEY]
       // The cheap shape is the whole comparison key. Building the pending id
       // list and the workspace name for every session on every tick was the
@@ -450,12 +477,16 @@ export function apply(ctx: ClientContext): void {
             settings,
             trigger: { kind: 'turn', reason },
             sessionId: id,
+            ...(sessionOrigin === undefined ? {} : { sessionOrigin }),
             focused,
             dedupeKey,
             now,
             recent,
           })
-        const delivery = decision === null ? 'suppressed' : isSoundOnly(settings) ? 'sound-only' : 'toast'
+        const mutedSubagent = decision === null && sessionOrigin === 'subagent'
+        const delivery = decision === null
+          ? (mutedSubagent ? 'suppressed (subagent ' + settings.subagentMode + ')' : 'suppressed')
+          : isSoundOnly(settings) ? 'sound-only' : 'toast'
         report('turn ' + String(projection.turn) + ' reason=' + String(reason)
           + ' focused=' + String(focused) + ' -> ' + delivery)
         if (decision !== null && reason !== undefined) {
@@ -526,6 +557,7 @@ export function apply(ctx: ClientContext): void {
           firstSeenAt: now,
           source: 'projection',
           label: toastNameOf(summary),
+          ...(sessionOrigin === undefined ? {} : { sessionOrigin }),
         })
       }
       // A departure is the only way the observed set can outgrow the projection,
@@ -622,6 +654,9 @@ export function apply(ctx: ClientContext): void {
       if (wait.reminded && settings.reminderMode !== 'repeat') continue
       waits.set(due.key, { ...wait, reminded: true, lastRemindedAt: now })
       if (focused) continue
+      // A child session switched to `silent` after its wait was tracked must not
+      // remind either: that gear promises nothing at all from a child.
+      if (settings.subagentMode === 'silent' && isSubagentSession(due.sessionId)) continue
       const parts = {
         workspace: sessionLabel(due.sessionId),
         status: t(shortScenarioKey('reminder')),
