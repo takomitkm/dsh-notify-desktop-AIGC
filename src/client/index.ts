@@ -105,7 +105,8 @@ interface SessionsListFace {
 
 /** The slice of the workspace service this plugin uses. */
 interface WorkspaceFace {
-  openSession?(sessionId: string): void
+  /** `openSession` takes a session id or a subagent address; we only need the id. */
+  openSession?(target: unknown): void
 }
 
 /** How often unanswered waits are re-checked, in milliseconds. */
@@ -162,6 +163,45 @@ export function apply(ctx: ClientContext): void {
   const sessions = ctx.get('sessions') as unknown as SessionsListFace
   const workspace = ctx.get('uiWorkspace') as WorkspaceFace | undefined
   const recent = new Map<string, number>()
+  /**
+   * The session the user is currently viewing: the last one they opened in the
+   * sidebar. DSH exposes no "currently open session" signal, so we learn it by
+   * observing `openSession`. Until the first navigation it is undefined, and the
+   * per-session muting rule then simply does nothing.
+   */
+  let activeSessionId: string | undefined = undefined
+  /**
+   * Extract a session id from an `openSession` argument (a bare id, or a
+   * subagent address carrying one) and remember it as the viewed session.
+   * @param target - the argument the workspace service was called with.
+   */
+  const trackViewedSession = (target: unknown): void => {
+    const id = typeof target === 'string'
+      ? target
+      : (target !== null && typeof target === 'object' && typeof (target as { sessionId?: unknown }).sessionId === 'string'
+        ? (target as { sessionId: string }).sessionId
+        : undefined)
+    if (id !== undefined) activeSessionId = id
+  }
+  // Observe every `openSession` navigation by wrapping the method on the same
+  // service instance the UI uses. A sidebar click then records the viewed
+  // session. If the instance cannot be patched, the feature degrades to a no-op
+  // rather than throwing.
+  if (workspace !== undefined && typeof workspace.openSession === 'function') {
+    const originalOpen = (workspace.openSession as (target: unknown) => void).bind(workspace)
+    try {
+      Object.defineProperty(workspace, 'openSession', {
+        configurable: true,
+        writable: true,
+        value: (target: unknown): void => {
+          trackViewedSession(target)
+          originalOpen(target)
+        },
+      })
+    } catch {
+      report('could not observe openSession; viewed-session muting disabled')
+    }
+  }
   /** Last logged projection shape per session (diagnostics only). */
   const seenShape = new Map<string, string>()
   const observedTurn = new Map<string, number>()
@@ -325,6 +365,7 @@ export function apply(ctx: ClientContext): void {
       trigger: { kind: 'pending', pending: ask.kind },
       sessionId: ask.sessionId,
       ...(sessionOrigin === undefined ? {} : { sessionOrigin }),
+      ...(activeSessionId === undefined ? {} : { activeSessionId }),
       focused,
       dedupeKey: ask.sessionId + ':request:' + ask.requestId,
       now,
@@ -342,8 +383,9 @@ export function apply(ctx: ClientContext): void {
         lastRemindedAt: 0,
       })
     }
+    const mutedViewed = decision === null && !settings.notifyViewedUnfocused && activeSessionId !== undefined && ask.sessionId === activeSessionId
     const delivery = decision === null
-      ? (silencedChild ? 'suppressed (subagent silent)' : 'suppressed')
+      ? (silencedChild ? 'suppressed (subagent silent)' : mutedViewed ? 'suppressed (viewed session)' : 'suppressed')
       : isSoundOnly(settings) ? 'sound-only' : 'toast'
     report('pending ' + where + ' focused=' + String(focused) + ' -> ' + delivery)
     if (decision === null) return
@@ -435,8 +477,10 @@ export function apply(ctx: ClientContext): void {
     const settings = store.getSnapshot()
     const now = Date.now()
     const focused = isFocused()
-    // 0.2.0-rc.2's SessionListState carries no "currently open session" signal,
-    // so the focused window is the whole suppression input here.
+    // Two suppression inputs: the focused window (nothing toasts while the user
+    // is in front of the app), and the session the user is currently viewing
+    // (tracked via `openSession`, because DSH exposes no "currently open session"
+    // signal of its own). In the background the viewed session is muted only when its always-mute switch is off; while focused the window rule above already covers it.
     for (const id of state.ids) {
       const summary = state.byId[id]
       if (summary === undefined) continue
@@ -478,14 +522,16 @@ export function apply(ctx: ClientContext): void {
             trigger: { kind: 'turn', reason },
             sessionId: id,
             ...(sessionOrigin === undefined ? {} : { sessionOrigin }),
+            ...(activeSessionId === undefined ? {} : { activeSessionId }),
             focused,
             dedupeKey,
             now,
             recent,
           })
         const mutedSubagent = decision === null && sessionOrigin === 'subagent'
+        const mutedViewed = decision === null && !settings.notifyViewedUnfocused && activeSessionId !== undefined && id === activeSessionId
         const delivery = decision === null
-          ? (mutedSubagent ? 'suppressed (subagent ' + settings.subagentMode + ')' : 'suppressed')
+          ? (mutedSubagent ? 'suppressed (subagent ' + settings.subagentMode + ')' : mutedViewed ? 'suppressed (viewed session)' : 'suppressed')
           : isSoundOnly(settings) ? 'sound-only' : 'toast'
         report('turn ' + String(projection.turn) + ' reason=' + String(reason)
           + ' focused=' + String(focused) + ' -> ' + delivery)
@@ -654,6 +700,8 @@ export function apply(ctx: ClientContext): void {
       if (wait.reminded && settings.reminderMode !== 'repeat') continue
       waits.set(due.key, { ...wait, reminded: true, lastRemindedAt: now })
       if (focused) continue
+      // The viewed session is redundant only when its always-mute switch is off; while focused the rule above already skips it.
+      if (!settings.notifyViewedUnfocused && activeSessionId !== undefined && due.sessionId === activeSessionId) continue
       // A child session switched to `silent` after its wait was tracked must not
       // remind either: that gear promises nothing at all from a child.
       if (settings.subagentMode === 'silent' && isSubagentSession(due.sessionId)) continue

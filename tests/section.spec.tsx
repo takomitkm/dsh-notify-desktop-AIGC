@@ -154,8 +154,9 @@ describe('notification settings section', () => {
       zh['settings.situations.title'],
       zh['settings.customize.title'],
     ])
-    // eight situation switches: five outcomes + three waiting kinds
-    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(9)
+    // ten switches: the master switch, five outcome toggles, three waiting
+    // toggles, and the viewed-session toggle
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(10)
     // three delivery radios plus the three subagent gears
     expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(6)
     // the test notification belongs to the first card
@@ -319,10 +320,11 @@ describe('notification settings section', () => {
       testButton.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     expect(tested).toBe(0)
-    // The situations are off-limits with the master off too.
+    // The situations are off-limits with the master off too (the viewed-session
+    // toggle is the ninth).
     const situations = [...container.querySelectorAll('input[type="checkbox"]')]
       .filter(node => node.id.startsWith('dsh-notify-notify')) as HTMLInputElement[]
-    expect(situations).toHaveLength(8)
+    expect(situations).toHaveLength(9)
     for (const box of situations) expect(box.disabled).toBe(true)
     expect((container.querySelector('input[type="number"]') as HTMLInputElement).disabled).toBe(true)
     // The configuration surfaces stay live: both collapse headers and the add button.

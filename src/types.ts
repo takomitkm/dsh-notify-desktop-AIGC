@@ -274,6 +274,16 @@ export interface NotifySettings {
   readonly notifyQuestion: boolean
   /** Notify while a session waits for a plan review. */
   readonly notifyPlanReview: boolean
+  /**
+   * When on, the session you are currently viewing (the one you last opened in
+   * the sidebar) still notifies you when DSH is in the background, because you
+   * are not looking at it then. When off, that session is muted in every
+   * situation — its outcome is already on screen. The foreground case is already
+   * covered by the window-focus suppression: while DSH has focus nothing toasts,
+   * the viewed session included. The client learns which session is viewed by
+   * observing `openSession`; DSH exposes no "currently open session" signal.
+   */
+  readonly notifyViewedUnfocused: boolean
   /** Minutes an unanswered blocking interaction may wait before one reminder. */
   readonly remindAfterMinutes: number
   /** What that reminder does: once, repeating, or a toast that stays until dismissed. */
@@ -330,6 +340,7 @@ export const DEFAULT_SETTINGS: NotifySettings = Object.freeze({
   notifyApproval: true,
   notifyQuestion: true,
   notifyPlanReview: true,
+  notifyViewedUnfocused: true,
   remindAfterMinutes: 10,
   reminderMode: 'once',
   remindEveryMinutes: 5,

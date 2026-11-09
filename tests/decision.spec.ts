@@ -88,6 +88,21 @@ describe('notification decision', () => {
     expect(decideNotification(input({ focused: false }))).not.toBeNull()
   })
 
+  it('mutes the viewed session only when its always-mute switch is off', () => {
+    // Default (notifyViewedUnfocused on) + background: the viewed session notifies.
+    expect(decideNotification(input({ activeSessionId: 's1' }))).not.toBeNull()
+    expect(decideNotification(input({ activeSessionId: 's1', trigger: { kind: 'pending', pending: 'approval' } }))).not.toBeNull()
+    // Switch off: the viewed session (s1) is muted in every situation, even in the background.
+    expect(decideNotification(input({ activeSessionId: 's1', settings: settings({ notifyViewedUnfocused: false }) }))).toBeNull()
+    expect(decideNotification(input({ activeSessionId: 's1', settings: settings({ notifyViewedUnfocused: false }), trigger: { kind: 'pending', pending: 'approval' } }))).toBeNull()
+    // A different session still notifies.
+    expect(decideNotification(input({ activeSessionId: 's2' }))).not.toBeNull()
+    // No tracked session: nothing is muted by this rule.
+    expect(decideNotification(input({ sessionId: 's1' }))).not.toBeNull()
+    // Focused still suppresses everything, the viewed session included.
+    expect(decideNotification(input({ activeSessionId: 's1', focused: true }))).toBeNull()
+  })
+
   it('drops a repeat of the same key inside the dedupe window but not after it', () => {
     const recent = new Map<string, number>([['s1:turn:1', 9_000]])
     expect(decideNotification(input({ recent, now: 9_000 + DEDUPE_MS - 1 }))).toBeNull()

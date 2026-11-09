@@ -97,6 +97,13 @@ export interface DecisionInput {
      * ordinary conversation and for a user's own fork.
      */
     readonly sessionOrigin?: 'subagent';
+    /**
+     * The session the user is currently viewing (the one they last opened in the
+     * sidebar), or undefined when that is not known. When it matches `sessionId`
+     * and `settings.notifyViewedUnfocused` is false, the toast is suppressed even
+     * in the background, because its outcome is on screen.
+     */
+    readonly activeSessionId?: string;
     /** Whether the application window has focus. */
     readonly focused: boolean;
     /** The de-duplication key for this exact signal. */

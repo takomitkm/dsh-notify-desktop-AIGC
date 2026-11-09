@@ -586,6 +586,20 @@ export function NotifySettingsSection(props: NotifySectionProps): JSX.Element {
             />
           ))}
         </div>
+        <div className="dsh_notify_subcard">
+          <div className="dsh_notify_subcardTitle">{t('settings.situations.viewedTitle')}</div>
+          <div className="dsh_notify_rowDesc">{t('settings.situations.viewedDesc')}</div>
+          <Toggle
+            id="dsh-notify-notifyViewedUnfocused"
+            checked={settings.notifyViewedUnfocused}
+            disabled={!formEnabled}
+            label={t('settings.situations.viewedLabel')}
+            desc={t('settings.situations.viewedLabelDesc')}
+            onChange={checked => {
+              props.set({ notifyViewedUnfocused: checked })
+            }}
+          />
+        </div>
       </div>
 
       <div className="dsh_notify_card">

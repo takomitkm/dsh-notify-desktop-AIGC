@@ -215,6 +215,7 @@ export function readSettings(storage: SettingsStorage | undefined = ambientStora
       notifyApproval: clampBoolean(saved['notifyApproval'], DEFAULT_SETTINGS.notifyApproval),
       notifyQuestion: clampBoolean(saved['notifyQuestion'], DEFAULT_SETTINGS.notifyQuestion),
       notifyPlanReview: clampBoolean(saved['notifyPlanReview'], DEFAULT_SETTINGS.notifyPlanReview),
+      notifyViewedUnfocused: clampBoolean(saved['notifyViewedUnfocused'], DEFAULT_SETTINGS.notifyViewedUnfocused),
       remindAfterMinutes: clampMinutes(saved['remindAfterMinutes']),
       reminderMode: clampReminderMode(saved['reminderMode']),
       remindEveryMinutes: clampMinutes(saved['remindEveryMinutes']),

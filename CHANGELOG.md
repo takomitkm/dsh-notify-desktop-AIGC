@@ -8,6 +8,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Added
 
+- **The session you are currently viewing notifies when DSH is in the background.**
+  When you have a session open in the main pane and DSH is focused, nothing toasts
+  anyway (the existing window-focus suppression covers it). When DSH is in the
+  background, that session now notifies on completion, errors, waits and reminders —
+  you are not looking at it then — unless you turn the new switch
+  (`notifyViewedUnfocused`, default on) off, which mutes it in every situation. The
+  plugin learns which session you are viewing by observing every `openSession`
+  navigation (DSH exposes no "currently open session" signal of its own); the session
+  the app restores at launch is not tracked, but the window is focused then.
+
 - **Background subagent sessions no longer raise a toast storm, with three gears to choose from.**
   DSH lists every delegated `subagent` session as its own session (`origin: 'subagent'`, hidden from
   the sidebar by that field), so one delegation that spawns N children used to raise N completion

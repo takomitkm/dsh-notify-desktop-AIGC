@@ -157,6 +157,10 @@ export const zh = {
   'settings.situations.subagentAllDesc': '每个子代理结束都弹窗——旧行为，一次派多个子代理时可能连环响。',
   'settings.situations.pendingTitle': '等待你确认',
   'settings.situations.pendingDesc': 'DSH 停下来等你审批、回答或评审计划。',
+  'settings.situations.viewedTitle': '正在查看的会话',
+  'settings.situations.viewedDesc': 'DSH 不在前台时，你正点开的会话结束 / 等你确认 / 催办仍会提醒你（因为那时你并没在看它）；DSH 在前台时本来就不弹任何通知。它靠你点开某条会话记住「正在看哪个」；启动时自动恢复的那条暂时不算（但那时窗口有焦点，本来也不弹）。',
+  'settings.situations.viewedLabel': '不在前台时仍通知当前会话',
+  'settings.situations.viewedLabelDesc': '默认开启。关闭后，正在查看的会话一律静音，无论前后台。',
 
   // Built-in sound labels.
   'settings.sound.systemDefault': '系统提示音（叮）',
@@ -350,6 +354,10 @@ export const en = {
   'settings.situations.subagentAllDesc': 'Every subagent finish raises a toast — the old behaviour, which can storm when you delegate several children.',
   'settings.situations.pendingTitle': 'Waiting on you',
   'settings.situations.pendingDesc': 'DSH stopped for an approval, an answer or a plan review.',
+  'settings.situations.viewedTitle': 'The session you are viewing',
+  'settings.situations.viewedDesc': "When DSH is in the background, the session you have open still notifies you on completion, waits or reminders — you are not looking at it then. While DSH is in the foreground nothing toasts anyway. The plugin learns which session that is when you open one; the session restored at launch is not tracked, but the window has focus then.",
+  'settings.situations.viewedLabel': 'Notify the current session when not focused',
+  'settings.situations.viewedLabelDesc': 'On by default. Turn off to always mute the session you are viewing, in any window state.',
 
   'settings.sound.systemDefault': 'System chime',
   'settings.sound.systemIm': 'System message',

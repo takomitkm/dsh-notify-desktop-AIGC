@@ -39,6 +39,7 @@ describe('notification contract', () => {
       notifyApproval: true,
       notifyQuestion: true,
       notifyPlanReview: true,
+      notifyViewedUnfocused: true,
       remindAfterMinutes: 10,
       reminderMode: 'once',
       remindEveryMinutes: 5,

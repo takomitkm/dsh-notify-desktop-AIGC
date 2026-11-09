@@ -142,6 +142,10 @@ export declare const zh: {
     readonly 'settings.situations.subagentAllDesc': "每个子代理结束都弹窗——旧行为，一次派多个子代理时可能连环响。";
     readonly 'settings.situations.pendingTitle': "等待你确认";
     readonly 'settings.situations.pendingDesc': "DSH 停下来等你审批、回答或评审计划。";
+    readonly 'settings.situations.viewedTitle': "正在查看的会话";
+    readonly 'settings.situations.viewedDesc': "DSH 不在前台时，你正点开的会话结束 / 等你确认 / 催办仍会提醒你（因为那时你并没在看它）；DSH 在前台时本来就不弹任何通知。它靠你点开某条会话记住「正在看哪个」；启动时自动恢复的那条暂时不算（但那时窗口有焦点，本来也不弹）。";
+    readonly 'settings.situations.viewedLabel': "不在前台时仍通知当前会话";
+    readonly 'settings.situations.viewedLabelDesc': "默认开启。关闭后，正在查看的会话一律静音，无论前后台。";
     readonly 'settings.sound.systemDefault': "系统提示音（叮）";
     readonly 'settings.sound.systemIm': "系统消息";
     readonly 'settings.sound.systemMail': "系统邮件";
@@ -322,6 +326,10 @@ export declare const en: {
     'settings.situations.subagentAllDesc': string;
     'settings.situations.pendingTitle': string;
     'settings.situations.pendingDesc': string;
+    'settings.situations.viewedTitle': string;
+    'settings.situations.viewedDesc': string;
+    'settings.situations.viewedLabel': string;
+    'settings.situations.viewedLabelDesc': string;
     'settings.sound.systemDefault': string;
     'settings.sound.systemIm': string;
     'settings.sound.systemMail': string;
