@@ -78,6 +78,7 @@ import {
 import { NotifySettingsSection, type NotifySectionInjected } from './SettingsSection.tsx'
 import { createSettingsStore } from './settings.ts'
 import { createTextStore } from './texts.ts'
+import { pushNotification } from './channels.ts'
 import { adoptStyles } from './styles.ts'
 
 /**
@@ -282,6 +283,39 @@ export function apply(ctx: ClientContext): void {
   }
 
   /**
+   * Mirror one situation out to the external channels (Bark / Telegram / …).
+   *
+   * It rides the same decision that raised the toast, so it fires exactly when
+   * the toast would (never while the window is focused, per the subagent gears,
+   * or for a muted viewed session) — pushing to the phone only when the user is
+   * away. The title/body come from the same template the toast uses. Level is a
+   * coarse severity for the channels that rank messages.
+   * @param scenario - the situation being announced.
+   * @param parts - the live placeholder values.
+   * @param fallbackBody - the line used when the body has no content.
+   */
+  const emitExternal = (
+    scenario: NotifyScenario,
+    parts: { readonly workspace: string; readonly status: string; readonly body: string; readonly minutes?: string },
+    fallbackBody: string,
+  ): void => {
+    const text = textFor(scenario, parts, fallbackBody)
+    const level = scenario === 'error'
+      ? 'error'
+      : scenario === 'approval' || scenario === 'question' || scenario === 'plan-review' || scenario === 'reminder'
+        ? 'warning'
+        : 'info'
+    pushNotification({
+      title: text.title,
+      body: text.body,
+      level,
+      scenario,
+      source: parts.workspace,
+      timestamp: Date.now(),
+    })
+  }
+
+  /**
    * Move the first template iteration's global title/body pair into the saved
    * text library: one template per enabled situation, selected for it.
    *
@@ -395,6 +429,7 @@ export function apply(ctx: ClientContext): void {
       status: t(shortScenarioKey(scenario)),
       body: plainSummary(ask.summary),
     }
+    emitExternal(scenario, parts, fallbackBodyOf(scenario))
     if (isSoundOnly(settings)) {
       // The sound-only mode never raises anything: the decision's sound goes to
       // the host's sound-only route and the ask stays invisible.
@@ -542,6 +577,7 @@ export function apply(ctx: ClientContext): void {
             status: t(shortScenarioKey(scenario)),
             body: plainSummary(projection.body),
           }
+          emitExternal(scenario, parts, fallbackBodyOf(scenario))
           if (isSoundOnly(settings)) {
             playSoundOnly(decision.sound)
           } else {
@@ -711,6 +747,7 @@ export function apply(ctx: ClientContext): void {
         body: plainSummary(wait.summary),
         minutes,
       }
+      emitExternal('reminder', parts, fallbackBodyOf('reminder'))
       const sound = scenarioSound(settings, 'reminder')
       if (isSoundOnly(settings)) {
         playSoundOnly(sound)

@@ -27,6 +27,7 @@ import { shortScenarioKey } from './notifier.ts'
 import { SoundPicker } from './SoundPicker.tsx'
 import { TextPicker } from './TextPicker.tsx'
 import { TextManager } from './TextManager.tsx'
+import { ChannelManager } from './ChannelManager.tsx'
 import { scenarioEnabled } from './decision.ts'
 import type { SettingsStore } from './settings.ts'
 import type { TextStore } from './texts.ts'
@@ -909,6 +910,12 @@ export function NotifySettingsSection(props: NotifySectionProps): JSX.Element {
             onDelete={(scenario, id) => props.texts.remove(scenario, id)}
           />
         </Collapse>
+      </div>
+
+      <div className="dsh_notify_card">
+        <div className="dsh_notify_cardTitle">{t('settings.push.title')}</div>
+        <div className="dsh_notify_cardDesc">{t('settings.push.desc')}</div>
+        <ChannelManager t={props.tr as unknown as (key: string, params?: Record<string, string>) => string} />
       </div>
 
     </section>

@@ -145,7 +145,7 @@ function scenarioNames(container: HTMLElement): string[] {
 }
 
 describe('notification settings section', () => {
-  it('renders the three cards in order with every enabled situation row', async () => {
+  it('renders the four cards in order with every enabled situation row', async () => {
     const { container } = await render()
     const cardTitles = [...container.querySelectorAll('.dsh_notify_cardTitle')]
       .map(node => node.textContent ?? '')
@@ -153,6 +153,7 @@ describe('notification settings section', () => {
       zh['settings.title'],
       zh['settings.situations.title'],
       zh['settings.customize.title'],
+      zh['settings.push.title'],
     ])
     // ten switches: the master switch, five outcome toggles, three waiting
     // toggles, and the viewed-session toggle
