@@ -10,14 +10,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 - **External push channels: send every notification to your phone / chat / mailbox, too.**
   A new "External push" card delivers each notification, alongside the Windows toast, to any of
-  15 channels — Bark, Server酱, PushPlus, 企业微信, 钉钉, 飞书, Telegram, ntfy, Gotify, Slack,
-  Discord, WxPusher, PushDeer, SMTP and a generic webhook. Each channel is independent (one
+  21 channels — Bark, Server酱, PushPlus, 企业微信, 钉钉, 飞书, Telegram, ntfy, Gotify, Slack,
+  Discord, WxPusher (uid or topic broadcast), PushDeer, Qmsg酱, MeoW, KOOK, OneBot (QQ), Matrix,
+  Pushover, SMTP and a generic webhook. Each channel is independent (one
   failure never blocks the rest), and the push rides the same decision as the toast, so it fires
   exactly when a toast would — i.e. only while DSH is in the background, never while it is
   focused. The channels and their secrets live host-side in
   `%LOCALAPPDATA%\dsh-notify\channels.json`, never in the browser. 钉钉 / 飞书 support HMAC
-  signing; SMTP is delivered over Node's built-in `net` / `tls` (no third-party mailer, keeping
-  the host bundle self-contained).
+  signing; SMTP is delivered over Node's built-in `net` / `tls` (implicit TLS on 465 or STARTTLS
+  on 587; no third-party mailer, keeping the host bundle self-contained).
 
 - **The session you are currently viewing notifies when DSH is in the background.**
   When you have a session open in the main pane and DSH is focused, nothing toasts

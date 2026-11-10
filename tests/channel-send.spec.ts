@@ -166,3 +166,62 @@ describe('channel dispatch — delivery and business codes', () => {
     expect(bad.error).toContain('auth failed')
   })
 })
+
+describe('channel dispatch — additional channels', () => {
+  it('builds qmsg with key and optional qq', () => {
+    const call = buildHttpCall(ch('qmsg', { key: 'K' }), message, 0)
+    expect(call.url).toBe('https://qmsg.zendee.cn/send/K')
+    expect(call.body).toContain('msg=')
+    expect(buildHttpCall(ch('qmsg', { key: 'K', qq: '10001' }), message, 0).body).toContain('qq=10001')
+  })
+
+  it('builds meow against the default server', () => {
+    expect(buildHttpCall(ch('meow', { nickname: 'nick' }), message, 0).url).toBe('https://api.chuckfang.com/nick')
+  })
+
+  it('builds kook with a Bot authorization header', () => {
+    const call = buildHttpCall(ch('kook', { token: 'TKN', targetId: 'chan1' }), message, 0)
+    expect(call.url).toBe('https://www.kookapp.cn/api/v3/message/create')
+    expect(call.headers['Authorization']).toBe('Bot TKN')
+  })
+
+  it('builds onebot send_msg for private and group', () => {
+    const priv = JSON.parse(buildHttpCall(ch('onebot', { server: 'http://127.0.0.1:5700', target: '123' }), message, 0).body as string)
+    expect(priv.message_type).toBe('private')
+    expect(priv.user_id).toBe(123)
+    const grp = JSON.parse(buildHttpCall(ch('onebot', { server: 'http://x', messageType: 'group', target: '9' }), message, 0).body as string)
+    expect(grp.message_type).toBe('group')
+    expect(grp.group_id).toBe(9)
+  })
+
+  it('builds matrix with a bearer token and room path', () => {
+    const call = buildHttpCall(ch('matrix', { server: 'https://mx.x', roomId: '!r:mx.x', token: 'AT' }), message, 0)
+    expect(call.url).toContain('/_matrix/client/v3/rooms/')
+    expect(call.headers['Authorization']).toBe('Bearer AT')
+    expect(call.method).toBe('PUT')
+  })
+
+  it('builds pushover with a form body', () => {
+    const call = buildHttpCall(ch('pushover', { token: 'app', user: 'u' }), message, 0)
+    expect(call.url).toBe('https://api.pushover.net/1/messages.json')
+    expect(call.body).toContain('token=app')
+    expect(call.body).toContain('user=u')
+  })
+
+  it('sends wxpusher topicIds alongside uids', () => {
+    const payload = JSON.parse(buildHttpCall(ch('wxpusher', { appToken: 'AT_x', topicIds: '123, 456' }), message, 0).body as string)
+    expect(payload.topicIds).toEqual([123, 456])
+    expect(payload.uids).toEqual([])
+  })
+
+  it('plans SMTP over STARTTLS on 587', () => {
+    const plan = buildSmtpPlan(ch('smtp', { host: 'smtp.x', port: '587', secure: 'starttls', from: 'a@x', to: 'b@x' }), message)
+    expect(plan.secure).toBe('starttls')
+    expect(plan.port).toBe(587)
+  })
+
+  it('defaults smtp encryption to ssl when the field is blank', () => {
+    const plan = buildSmtpPlan(ch('smtp', { host: 'smtp.x', port: '465', from: 'a@x', to: 'b@x' }), message)
+    expect(plan.secure).toBe('ssl')
+  })
+})

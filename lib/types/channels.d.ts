@@ -12,7 +12,7 @@
  * channels.json`), never in the browser's localStorage.
  */
 /** Every channel kind this build can deliver to, in catalogue order. */
-export declare const CHANNEL_TYPES: readonly ["webhook", "bark", "serverchan", "pushplus", "wecom", "dingtalk", "feishu", "telegram", "ntfy", "gotify", "slack", "discord", "wxpusher", "pushdeer", "smtp"];
+export declare const CHANNEL_TYPES: readonly ["webhook", "bark", "serverchan", "pushplus", "wecom", "dingtalk", "feishu", "telegram", "ntfy", "gotify", "slack", "discord", "wxpusher", "pushdeer", "qmsg", "meow", "kook", "onebot", "matrix", "pushover", "smtp"];
 /** One channel kind. */
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 /** Whether a value names a known channel type. */

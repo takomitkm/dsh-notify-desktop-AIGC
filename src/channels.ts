@@ -28,6 +28,12 @@ export const CHANNEL_TYPES = Object.freeze([
   'discord',
   'wxpusher',
   'pushdeer',
+  'qmsg',
+  'meow',
+  'kook',
+  'onebot',
+  'matrix',
+  'pushover',
   'smtp',
 ] as const)
 
@@ -120,15 +126,42 @@ export const CHANNEL_FIELDS: Readonly<Record<ChannelType, readonly ChannelField[
   wxpusher: fields([
     { key: 'appToken', labelKey: 'settings.push.field.appToken', required: true, secret: true, kind: 'password', placeholder: 'AT_...' },
     { key: 'uid', labelKey: 'settings.push.field.uid', required: false, placeholder: 'UID_...' },
+    { key: 'topicIds', labelKey: 'settings.push.field.topicIds', required: false, placeholder: '123,456' },
   ]),
   pushdeer: fields([
     { key: 'pushKey', labelKey: 'settings.push.field.pushKey', required: true, secret: true, kind: 'password' },
     { key: 'server', labelKey: 'settings.push.field.server', required: false, placeholder: 'https://api2.pushdeer.com' },
   ]),
+  qmsg: fields([
+    { key: 'key', labelKey: 'settings.push.field.qmsgKey', required: true, secret: true, kind: 'password' },
+    { key: 'qq', labelKey: 'settings.push.field.qq', required: false, placeholder: '收件 QQ（可选）' },
+  ]),
+  meow: fields([
+    { key: 'nickname', labelKey: 'settings.push.field.nickname', required: true },
+    { key: 'server', labelKey: 'settings.push.field.server', required: false, placeholder: 'https://api.chuckfang.com' },
+  ]),
+  kook: fields([
+    { key: 'token', labelKey: 'settings.push.field.token', required: true, secret: true, kind: 'password' },
+    { key: 'targetId', labelKey: 'settings.push.field.targetId', required: true, placeholder: '频道/用户 id' },
+  ]),
+  onebot: fields([
+    { key: 'server', labelKey: 'settings.push.field.server', required: true, placeholder: 'http://127.0.0.1:5700' },
+    { key: 'messageType', labelKey: 'settings.push.field.messageType', required: false, kind: 'select', options: ['private', 'group'] },
+    { key: 'target', labelKey: 'settings.push.field.target', required: true, placeholder: 'QQ 号 / 群号' },
+  ]),
+  matrix: fields([
+    { key: 'server', labelKey: 'settings.push.field.server', required: true, placeholder: 'https://matrix.example.com' },
+    { key: 'roomId', labelKey: 'settings.push.field.roomId', required: true, placeholder: '!abc:example.com' },
+    { key: 'token', labelKey: 'settings.push.field.token', required: true, secret: true, kind: 'password' },
+  ]),
+  pushover: fields([
+    { key: 'token', labelKey: 'settings.push.field.token', required: true, secret: true, kind: 'password' },
+    { key: 'user', labelKey: 'settings.push.field.userKey', required: true, secret: true, kind: 'password' },
+  ]),
   smtp: fields([
     { key: 'host', labelKey: 'settings.push.field.smtpHost', required: true, placeholder: 'smtp.example.com' },
     { key: 'port', labelKey: 'settings.push.field.smtpPort', required: true, kind: 'number', placeholder: '465' },
-    { key: 'secure', labelKey: 'settings.push.field.smtpSecure', required: false, kind: 'select', options: ['ssl', 'none'] },
+    { key: 'secure', labelKey: 'settings.push.field.smtpSecure', required: false, kind: 'select', options: ['ssl', 'starttls', 'none'] },
     { key: 'user', labelKey: 'settings.push.field.smtpUser', required: false },
     { key: 'pass', labelKey: 'settings.push.field.smtpPass', required: false, secret: true, kind: 'password' },
     { key: 'from', labelKey: 'settings.push.field.smtpFrom', required: true, placeholder: 'dsh@example.com' },

@@ -289,12 +289,17 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
     case 'wxpusher': {
       const appToken = need(channel, 'appToken', 'appToken')
       const uid = f('uid')
+      const topicIds = f('topicIds')
+        .split(',')
+        .map(part => Number(part.trim()))
+        .filter(value => Number.isFinite(value) && value > 0)
       const payload: Record<string, unknown> = {
         appToken,
         content: joinedText(message),
         summary: message.title.slice(0, 100),
         contentType: 1,
         uids: uid === '' ? [] : [uid],
+        topicIds,
       }
       return {
         url: 'https://wxpusher.zjiecode.com/api/send/message',
@@ -313,6 +318,80 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
         headers: { 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' },
         body: 'pushkey=' + enc(pushKey) + '&text=' + enc(message.title) + '&desp=' + enc(joinedText(message)) + '&type=text',
         check: (status, json) => checkCode(status, json, 'code', 0),
+      }
+    }
+    case 'qmsg': {
+      const key = need(channel, 'key', 'Qmsg key')
+      let body = 'msg=' + enc(joinedText(message))
+      if (f('qq') !== '') body += '&qq=' + enc(f('qq'))
+      return {
+        url: 'https://qmsg.zendee.cn/send/' + enc(key),
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' },
+        body,
+        check: (status, json) => checkCode(status, json, 'code', 0),
+      }
+    }
+    case 'meow': {
+      const nickname = need(channel, 'nickname', 'nickname')
+      const server = base(f('server'), 'https://api.chuckfang.com')
+      return {
+        url: server + '/' + enc(nickname),
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ title: message.title, msg: joinedText(message) }),
+        check: statusOk,
+      }
+    }
+    case 'kook': {
+      const token = need(channel, 'token', 'bot token')
+      const targetId = need(channel, 'targetId', 'target id')
+      return {
+        url: 'https://www.kookapp.cn/api/v3/message/create',
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8', Authorization: 'Bot ' + token },
+        body: JSON.stringify({ target_id: targetId, content: text }),
+        check: (status, json) => checkCode(status, json, 'code', 0),
+      }
+    }
+    case 'onebot': {
+      const server = base(need(channel, 'server', 'server'), '')
+      const messageType = f('messageType') === 'group' ? 'group' : 'private'
+      const target = need(channel, 'target', 'target id')
+      const numeric = Number(target)
+      const idValue = Number.isFinite(numeric) ? numeric : target
+      const payload: Record<string, unknown> = { message_type: messageType, message: text, auto_escape: false }
+      payload[messageType === 'group' ? 'group_id' : 'user_id'] = idValue
+      return {
+        url: server + '/send_msg',
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify(payload),
+        check: (status, json) => checkCode(status, json, 'retcode', 0),
+      }
+    }
+    case 'matrix': {
+      const server = base(need(channel, 'server', 'server'), '')
+      const roomId = need(channel, 'roomId', 'room id')
+      const token = need(channel, 'token', 'access token')
+      const txnId = 'dsh' + String(now) + String(Math.floor(Math.random() * 1_000_000))
+      return {
+        url: server + '/_matrix/client/v3/rooms/' + enc(roomId) + '/send/m.room.message/' + txnId,
+        method: 'PUT',
+        headers: { 'content-type': 'application/json; charset=utf-8', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ msgtype: 'm.text', body: text }),
+        check: statusOk,
+      }
+    }
+    case 'pushover': {
+      const token = need(channel, 'token', 'application token')
+      const user = need(channel, 'user', 'user key')
+      return {
+        url: 'https://api.pushover.net/1/messages.json',
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' },
+        body: 'token=' + enc(token) + '&user=' + enc(user) + '&title=' + enc(message.title) + '&message=' + enc(joinedText(message)),
+        check: (status, json) => checkCode(status, json, 'status', 1),
       }
     }
     case 'smtp':
@@ -404,96 +483,150 @@ export function buildSmtpPlan(channel: ChannelConfig, message: PushMessage): Smt
   return { host, port, secure, user, pass, from, to, data }
 }
 
-/** Run the SMTP conversation over an already-connected socket. */
-async function smtpConversation(socket: Socket, plan: SmtpPlan, startTls: boolean): Promise<void> {
-  let buffer = ''
-  const waiters: Array<(line: string) => void> = []
-  let closed: string | null = null
-  const onData = (chunk: Buffer): void => {
-    buffer += chunk.toString('utf8')
-    // An SMTP reply ends on a line whose 4th char is a space ("250 OK", not
+/**
+ * A line-oriented SMTP session whose socket can be upgraded to TLS mid-talk.
+ *
+ * STARTTLS (port 587) and implicit TLS (port 465) differ only in when the
+ * socket becomes encrypted: 465 starts encrypted, 587 starts plain then the
+ * STARTTLS command upgrades the *same* connection. This class owns the reply
+ * buffer so the upgrade can swap the socket without losing a queued reply.
+ */
+class SmtpSession {
+  private socket: Socket
+  private buffer = ''
+  private replies: string[] = []
+  private waiter: { resolve: (reply: string) => void; reject: (error: Error) => void } | null = null
+  private failure: Error | null = null
+
+  constructor(socket: Socket) {
+    this.socket = socket
+    this.attach(socket)
+  }
+
+  private attach(socket: Socket): void {
+    socket.on('data', this.onData)
+    socket.on('error', this.onError)
+    socket.on('close', this.onClose)
+  }
+
+  private detach(socket: Socket): void {
+    socket.removeListener('data', this.onData)
+    socket.removeListener('error', this.onError)
+    socket.removeListener('close', this.onClose)
+  }
+
+  private onData = (chunk: Buffer): void => {
+    this.buffer += chunk.toString('utf8')
+    // A reply ends on a line whose 4th char is a space ("250 OK", not
     // "250-STARTTLS"), so a multi-line reply is delivered as one block.
-    let index = buffer.indexOf('\n')
+    let index = this.buffer.indexOf('\n')
     while (index >= 0) {
-      const line = buffer.slice(0, index + 1)
-      buffer = buffer.slice(index + 1)
-      if (/^\d{3} /.test(line) || /^\d{3}\r?\n$/.test(line)) {
-        const waiter = waiters.shift()
-        if (waiter !== undefined) waiter(line.replace(/\r?\n$/, ''))
-      }
-      index = buffer.indexOf('\n')
+      const line = this.buffer.slice(0, index + 1)
+      this.buffer = this.buffer.slice(index + 1)
+      if (/^\d{3} /.test(line) || /^\d{3}\r?\n$/.test(line)) this.pushReply(line.replace(/\r?\n$/, ''))
+      index = this.buffer.indexOf('\n')
     }
   }
-  const onClose = (): void => {
-    closed = 'connection closed by server'
-    while (waiters.length > 0) {
-      const waiter = waiters.shift()
-      if (waiter !== undefined) waiter('__CLOSED__')
+
+  private pushReply(reply: string): void {
+    if (this.waiter !== null) {
+      const waiter = this.waiter
+      this.waiter = null
+      waiter.resolve(reply)
+    } else {
+      this.replies.push(reply)
     }
   }
-  socket.on('data', onData)
-  socket.on('close', onClose)
-  socket.on('error', onClose)
-  const readLine = (): Promise<string> => new Promise((resolve, reject) => {
-    if (closed !== null) {
-      reject(new Error(closed))
-      return
+
+  private onError = (error: Error): void => {
+    this.fail(error)
+  }
+
+  private onClose = (): void => {
+    this.fail(new Error('connection closed by server'))
+  }
+
+  private fail(error: Error): void {
+    if (this.failure !== null) return
+    this.failure = error
+    if (this.waiter !== null) {
+      const waiter = this.waiter
+      this.waiter = null
+      waiter.reject(error)
     }
-    waiters.push(line => {
-      if (line === '__CLOSED__') reject(new Error(closed ?? 'closed'))
-      else resolve(line)
+  }
+
+  readReply(): Promise<string> {
+    if (this.failure !== null) return Promise.reject(this.failure)
+    const queued = this.replies.shift()
+    if (queued !== undefined) return Promise.resolve(queued)
+    return new Promise((resolve, reject) => {
+      this.waiter = { resolve, reject }
     })
-  })
-  const command = async (line: string, expect: string): Promise<void> => {
-    socket.write(line + '\r\n')
-    const reply = await readLine()
+  }
+
+  write(line: string): void {
+    this.socket.write(line + '\r\n')
+  }
+
+  async command(line: string, expect: string): Promise<void> {
+    this.write(line)
+    const reply = await this.readReply()
     if (!reply.startsWith(expect)) throw new Error('smtp: expected ' + expect + ', got ' + reply)
   }
-  const greeting = await readLine()
-  if (!greeting.startsWith('220')) throw new Error('smtp: bad greeting ' + greeting)
-  await command('EHLO dsh-notify-desktop', '250')
-  if (startTls) {
-    await command('STARTTLS', '220')
-    throw new Error('smtp: STARTTLS upgrade is not supported in this build')
+
+  /** Upgrade the plain connection to TLS (the STARTTLS handshake). */
+  async upgradeTls(host: string): Promise<void> {
+    const plain = this.socket
+    this.detach(plain)
+    const secure = tlsConnect({ socket: plain, host, servername: host })
+    this.socket = secure
+    await new Promise<void>((resolve, reject) => {
+      secure.once('secureConnect', () => resolve())
+      secure.once('error', (error: Error) => reject(error))
+    })
+    this.attach(secure)
   }
-  if (plan.user !== '') {
-    await command('AUTH LOGIN', '334')
-    await command(Buffer.from(plan.user, 'utf8').toString('base64'), '334')
-    await command(Buffer.from(plan.pass, 'utf8').toString('base64'), '235')
+
+  end(): void {
+    this.socket.end()
   }
-  await command('MAIL FROM:<' + plan.from + '>', '250')
-  for (const recipient of plan.to) await command('RCPT TO:<' + recipient + '>', '250')
-  await command('DATA', '354')
-  socket.write(plan.data.replace(/\r\n\./g, '\r\n..') + '.\r\n')
-  const done = await readLine()
-  if (!done.startsWith('250')) throw new Error('smtp: DATA refused ' + done)
-  socket.write('QUIT\r\n')
-  socket.removeListener('data', onData)
 }
 
-/** Connect and deliver one SMTP message `data` string. */
-function deliverSmtp(plan: SmtpPlan): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const socket = plan.secure === 'ssl'
-      ? tlsConnect({ host: plan.host, port: plan.port })
-      : netConnect({ host: plan.host, port: plan.port })
-    const onError = (error: Error): void => {
-      socket.destroy()
-      reject(error)
-    }
-    socket.once('error', onError)
-    socket.once(plan.secure === 'ssl' ? 'secureConnect' : 'connect', () => {
-      socket.removeListener('error', onError)
-      smtpConversation(socket, plan, plan.secure === 'starttls')
-        .then(() => {
-          socket.end()
-          resolve()
-        }, (error: unknown) => {
-          socket.destroy()
-          reject(error instanceof Error ? error : new Error(String(error)))
-        })
-    })
+/** Connect and deliver one SMTP message. */
+async function deliverSmtp(plan: SmtpPlan): Promise<void> {
+  const socket = plan.secure === 'ssl'
+    ? tlsConnect({ host: plan.host, port: plan.port })
+    : netConnect({ host: plan.host, port: plan.port })
+  await new Promise<void>((resolve, reject) => {
+    socket.once(plan.secure === 'ssl' ? 'secureConnect' : 'connect', () => resolve())
+    socket.once('error', (error: Error) => reject(error))
   })
+  const session = new SmtpSession(socket)
+  try {
+    const greeting = await session.readReply()
+    if (!greeting.startsWith('220')) throw new Error('smtp: bad greeting ' + greeting)
+    await session.command('EHLO dsh-notify-desktop', '250')
+    if (plan.secure === 'starttls') {
+      await session.command('STARTTLS', '220')
+      await session.upgradeTls(plan.host)
+      await session.command('EHLO dsh-notify-desktop', '250')
+    }
+    if (plan.user !== '') {
+      await session.command('AUTH LOGIN', '334')
+      await session.command(Buffer.from(plan.user, 'utf8').toString('base64'), '334')
+      await session.command(Buffer.from(plan.pass, 'utf8').toString('base64'), '235')
+    }
+    await session.command('MAIL FROM:<' + plan.from + '>', '250')
+    for (const recipient of plan.to) await session.command('RCPT TO:<' + recipient + '>', '250')
+    await session.command('DATA', '354')
+    session.write(plan.data.replace(/\r\n\./g, '\r\n..') + '.')
+    const done = await session.readReply()
+    if (!done.startsWith('250')) throw new Error('smtp: DATA refused ' + done)
+    session.write('QUIT')
+  } finally {
+    session.end()
+  }
 }
 
 /** The default SMTP delivery (overridable by `options.smtpDeliver`). */
