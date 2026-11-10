@@ -11,7 +11,18 @@ import type { ChannelConfig, ChannelType, PushMessage } from '../src/channels.ts
 
 /** A configured channel for the tests. */
 function ch(type: ChannelType, fields: Record<string, string>, extra: Partial<ChannelConfig> = {}): ChannelConfig {
-  return { id: 'ch_abcdef123456', type, enabled: true, label: '', fields, ...extra }
+  return {
+    id: 'ch_abcdef123456',
+    type,
+    enabled: true,
+    label: '',
+    fields,
+    scenarios: [],
+    titleTemplate: '',
+    bodyTemplate: '',
+    markdown: false,
+    ...extra,
+  }
 }
 
 /** One message. */
@@ -22,6 +33,7 @@ const message: PushMessage = {
   scenario: 'completed',
   source: 'proj',
   timestamp: 1_700_000_000_000,
+  vars: { '工作区': 'proj', '状态': 'done', '内容': 'B', '分钟': '' },
 }
 
 /** A fetch stub returning a fixed status/text, optionally recording calls. */
@@ -223,5 +235,48 @@ describe('channel dispatch — additional channels', () => {
   it('defaults smtp encryption to ssl when the field is blank', () => {
     const plan = buildSmtpPlan(ch('smtp', { host: 'smtp.x', port: '465', from: 'a@x', to: 'b@x' }), message)
     expect(plan.secure).toBe('ssl')
+  })
+})
+
+describe('channel dispatch — format & targeting', () => {
+  it('applies a channel title/body template over the situation text', async () => {
+    let captured = ''
+    const channel = ch('wecom', { key: 'k' }, { titleTemplate: '{工作区} 通知', bodyTemplate: '{内容}（来自 {状态}）' })
+    await sendToChannel(channel, message, {
+      fetchImpl: async (_url, init) => {
+        captured = init.body ?? ''
+        return { status: 200, text: async () => '{"errcode":0}' }
+      },
+    })
+    const content = JSON.parse(captured).text.content as string
+    expect(content).toContain('proj 通知')
+    expect(content).toContain('B（来自 done）')
+  })
+
+  it('webhook sends a custom JSON body template', () => {
+    const call = buildHttpCall(ch('webhook', { url: 'https://x', jsonBody: '{"text":"{title} :: {body}","lvl":"{level}"}' }), message, 0)
+    const parsed = JSON.parse(call.body as string)
+    expect(parsed.text).toBe('T :: B')
+    expect(parsed.lvl).toBe('info')
+  })
+
+  it('webhook rejects a jsonBody that does not render to valid JSON', () => {
+    expect(() => buildHttpCall(ch('webhook', { url: 'https://x', jsonBody: '{not json' }), message, 0)).toThrow(ChannelBuildError)
+  })
+
+  it('sends markdown where the channel supports it', () => {
+    expect(JSON.parse(buildHttpCall(ch('wecom', { key: 'k' }, { markdown: true }), message, 0).body as string).msgtype).toBe('markdown')
+    expect(JSON.parse(buildHttpCall(ch('dingtalk', { url: 'https://d' }, { markdown: true }), message, 0).body as string).msgtype).toBe('markdown')
+    expect(JSON.parse(buildHttpCall(ch('feishu', { url: 'https://f' }, { markdown: true }), message, 0).body as string).msg_type).toBe('interactive')
+  })
+
+  it('skips channels whose scenario list excludes this situation', async () => {
+    const errorOnly = ch('wecom', { key: 'k' }, { id: 'ch_aaaaaaaaaaaa', scenarios: ['error'] })
+    const allCh = ch('slack', { url: 'https://s' }, { id: 'ch_bbbbbbbbbbbb' })
+    const fetchImpl: FetchLike = async () => ({ status: 200, text: async () => '{"errcode":0}' })
+    const completed = await dispatchChannels([errorOnly, allCh], message, { fetchImpl })
+    expect(completed.map(r => r.id)).toEqual(['ch_bbbbbbbbbbbb'])
+    const errored = await dispatchChannels([errorOnly, allCh], { ...message, scenario: 'error' }, { fetchImpl })
+    expect(errored).toHaveLength(2)
   })
 })

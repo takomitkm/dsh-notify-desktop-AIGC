@@ -201,6 +201,13 @@ scoop install ffmpeg           # 已装 Scoop
 | Pushover | Token* / 用户 Key* | — | application token + user key |
 | 邮件 (SMTP) | 服务器* / 端口* / 发件人* / 收件人* | 加密/用户名/密码 | 465=ssl、587=starttls、25=none；收件人逗号分隔 |
 
+**每个渠道还能单独定制：**
+
+- **适用情况** —— 勾选这个渠道只接收哪些情况（正常完成/出错/等待审批…）；一个都不勾 = 全部。比如只让「出错」推到值班群。
+- **标题/正文模板（可选）** —— 给这个渠道单独一套文案，留空就沿用「通知自定义」里的默认文本；占位符同默认文本 `{工作区} {状态} {内容} {分钟}`。
+- **Markdown 富文本** —— 企微 / 钉钉 / 飞书勾上后按 markdown 发送（企业微信 `msgtype=markdown`、钉钉 markdown 消息、飞书卡片 markdown）。
+- **Webhook 自定义 JSON body（仅通用 Webhook）** —— 用自己的 JSON 结构，占位符 `{title} {body} {level} {scenario} {source} {timestamp}` 以及 `{工作区} {状态} {内容} {分钟}`；值自动做 JSON 转义，渲染后不是合法 JSON 会报错。留空则用默认结构。
+
 **SMTP 加密。** `ssl` = 465 隐式 TLS；`starttls` = 587 先明文再升级 TLS；`none` = 明文。认证用 AUTH LOGIN（用户名 + 密码）。
 
 **配置文件长这样**（一般不用手改，界面填即可）：

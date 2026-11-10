@@ -281,6 +281,13 @@ export const zh = {
   'settings.push.type.onebot': 'OneBot (QQ)',
   'settings.push.type.matrix': 'Matrix',
   'settings.push.type.pushover': 'Pushover',
+  'settings.push.field.jsonBody': '自定义 JSON body 模板（可选）',
+  'settings.push.scenariosLabel': '适用情况（不选=全部）',
+  'settings.push.titleTemplateLabel': '标题模板（可选）',
+  'settings.push.bodyTemplateLabel': '正文模板（可选）',
+  'settings.push.templatePlaceholder': '留空则沿用默认；可用 {工作区} {状态} {内容} {分钟}',
+  'settings.push.markdownLabel': 'Markdown 富文本',
+  'settings.push.markdownHint': '该渠道支持时用 markdown 发送（企微/钉钉/飞书）',
 } as const
 
 /** The dictionary key set. */
@@ -555,6 +562,13 @@ export const en = {
   'settings.push.type.onebot': 'OneBot (QQ)',
   'settings.push.type.matrix': 'Matrix',
   'settings.push.type.pushover': 'Pushover',
+  'settings.push.field.jsonBody': 'Custom JSON body template (optional)',
+  'settings.push.scenariosLabel': 'Situations (none = all)',
+  'settings.push.titleTemplateLabel': 'Title template (optional)',
+  'settings.push.bodyTemplateLabel': 'Body template (optional)',
+  'settings.push.templatePlaceholder': 'Leave empty to inherit; {工作区} {状态} {内容} {分钟}',
+  'settings.push.markdownLabel': 'Markdown',
+  'settings.push.markdownHint': 'Send as markdown where the channel supports it (WeCom/DingTalk/Feishu)',
 } satisfies Record<NotifyKey, string>
 
 /** The locale namespace registered under ctx.locale. */

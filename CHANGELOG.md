@@ -18,7 +18,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   focused. The channels and their secrets live host-side in
   `%LOCALAPPDATA%\dsh-notify\channels.json`, never in the browser. 钉钉 / 飞书 support HMAC
   signing; SMTP is delivered over Node's built-in `net` / `tls` (implicit TLS on 465 or STARTTLS
-  on 587; no third-party mailer, keeping the host bundle self-contained).
+  on 587; no third-party mailer, keeping the host bundle self-contained). Each channel can narrow
+  which situations it receives, override the title/body template, and opt into markdown
+  (WeCom / DingTalk / Feishu); the generic webhook also accepts a custom JSON body template.
 
 - **The session you are currently viewing notifies when DSH is in the background.**
   When you have a session open in the main pane and DSH is focused, nothing toasts

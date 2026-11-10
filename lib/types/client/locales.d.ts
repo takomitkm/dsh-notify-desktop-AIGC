@@ -260,6 +260,13 @@ export declare const zh: {
     readonly 'settings.push.type.onebot': "OneBot (QQ)";
     readonly 'settings.push.type.matrix': "Matrix";
     readonly 'settings.push.type.pushover': "Pushover";
+    readonly 'settings.push.field.jsonBody': "自定义 JSON body 模板（可选）";
+    readonly 'settings.push.scenariosLabel': "适用情况（不选=全部）";
+    readonly 'settings.push.titleTemplateLabel': "标题模板（可选）";
+    readonly 'settings.push.bodyTemplateLabel': "正文模板（可选）";
+    readonly 'settings.push.templatePlaceholder': "留空则沿用默认；可用 {工作区} {状态} {内容} {分钟}";
+    readonly 'settings.push.markdownLabel': "Markdown 富文本";
+    readonly 'settings.push.markdownHint': "该渠道支持时用 markdown 发送（企微/钉钉/飞书）";
 };
 /** The dictionary key set. */
 export type NotifyKey = keyof typeof zh;
@@ -521,6 +528,13 @@ export declare const en: {
     'settings.push.type.onebot': string;
     'settings.push.type.matrix': string;
     'settings.push.type.pushover': string;
+    'settings.push.field.jsonBody': string;
+    'settings.push.scenariosLabel': string;
+    'settings.push.titleTemplateLabel': string;
+    'settings.push.bodyTemplateLabel': string;
+    'settings.push.templatePlaceholder': string;
+    'settings.push.markdownLabel': string;
+    'settings.push.markdownHint': string;
 };
 /** The locale namespace registered under ctx.locale. */
 export declare const NS = "notify";

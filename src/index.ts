@@ -762,12 +762,20 @@ function testPushMessage(): PushMessage {
     scenario: 'test',
     source: '',
     timestamp: Date.now(),
+    vars: { '工作区': '示例工作区', '状态': '测试', '内容': '这是一条测试通知', '分钟': '' },
   }
 }
 
 /** Coerce a posted body into a PushMessage (tolerant defaults). */
 function pushMessageOf(parsed: Record<string, unknown>): PushMessage {
   const level = parsed['level'] === 'error' ? 'error' : parsed['level'] === 'warning' ? 'warning' : 'info'
+  const rawVars = parsed['vars']
+  const vars: Record<string, string> = {}
+  if (rawVars !== null && typeof rawVars === 'object') {
+    for (const [key, value] of Object.entries(rawVars as Record<string, unknown>)) {
+      if (typeof value === 'string') vars[key] = value
+    }
+  }
   return {
     title: typeof parsed['title'] === 'string' ? parsed['title'] : '',
     body: typeof parsed['body'] === 'string' ? parsed['body'] : '',
@@ -775,6 +783,7 @@ function pushMessageOf(parsed: Record<string, unknown>): PushMessage {
     scenario: typeof parsed['scenario'] === 'string' ? parsed['scenario'] : '',
     source: typeof parsed['source'] === 'string' ? parsed['source'] : '',
     timestamp: typeof parsed['timestamp'] === 'number' && Number.isFinite(parsed['timestamp']) ? parsed['timestamp'] : Date.now(),
+    vars,
   }
 }
 

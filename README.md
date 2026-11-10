@@ -229,6 +229,13 @@ the browser's localStorage), written via a temp file plus a rename. Restart the 
 | Pushover | token* / user key* | — | application token + user key |
 | Email (SMTP) | host* / port* / from* / to* | encryption/user/pass | 465=ssl, 587=starttls, 25=none; `to` comma separated |
 
+**Each channel can also be customized on its own:**
+
+- **Situations** — tick which situations this channel receives (completed / error / waiting for approval…); none = all. E.g. send only errors to an on-call group.
+- **Title/body template (optional)** — a per-channel wording override; leave empty to inherit the "Notification setup" default text; same placeholders `{工作区} {状态} {内容} {分钟}`.
+- **Markdown** — WeCom / DingTalk / Feishu send markdown when ticked (WeCom `msgtype=markdown`, DingTalk markdown message, Feishu card markdown).
+- **Webhook custom JSON body (generic Webhook only)** — your own JSON shape, with `{title} {body} {level} {scenario} {source} {timestamp}` plus `{工作区} {状态} {内容} {分钟}`; values are JSON-escaped, and a template that does not render to valid JSON is reported as an error. Empty = the default envelope.
+
 **SMTP encryption.** `ssl` = implicit TLS on 465; `starttls` = plain on 587 then upgrade to TLS; `none` =
 plain. Authentication uses AUTH LOGIN (username + password).
 

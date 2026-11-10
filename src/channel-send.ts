@@ -92,6 +92,63 @@ function joinedText(message: PushMessage): string {
   return message.body.trim() === '' ? message.title : message.title + '\n' + message.body
 }
 
+/** Escape a value for safe substitution inside a JSON string literal. */
+function jsonEscape(value: string): string {
+  return JSON.stringify(value).slice(1, -1)
+}
+
+/**
+ * Fill a template's `{token}` placeholders. An unknown token is left untouched.
+ * @param template - the template text.
+ * @param vars - token → value.
+ * @param escape - JSON-escape each value (for the webhook jsonBody template).
+ * @returns the rendered text.
+ */
+function renderTemplate(template: string, vars: Readonly<Record<string, string>>, escape = false): string {
+  return template.replace(/\{([^{}]+)\}/g, (whole, key: string) => {
+    const value = vars[key]
+    if (value === undefined) return whole
+    return escape ? jsonEscape(value) : value
+  })
+}
+
+/** Build the placeholder values one message exposes to a channel template. */
+function renderVars(message: PushMessage, title: string, body: string): Record<string, string> {
+  const vars = message.vars
+  return {
+    ...vars,
+    title,
+    body,
+    level: message.level,
+    scenario: message.scenario,
+    source: message.source,
+    timestamp: new Date(message.timestamp).toISOString(),
+    workspace: vars['工作区'] ?? message.source,
+    status: vars['状态'] ?? '',
+    content: vars['内容'] ?? body,
+    minutes: vars['分钟'] ?? '',
+  }
+}
+
+/**
+ * Apply a channel's own title/body templates over the situation's text.
+ * @param channel - the channel whose overrides apply.
+ * @param message - the base message.
+ * @returns the message with its title/body re-rendered (or the same object when
+ *          the channel sets no override).
+ */
+function effectiveMessage(channel: ChannelConfig, message: PushMessage): PushMessage {
+  const titleTpl = channel.titleTemplate
+  const bodyTpl = channel.bodyTemplate
+  if (titleTpl === '' && bodyTpl === '') return message
+  const vars = renderVars(message, message.title, message.body)
+  return {
+    ...message,
+    title: titleTpl === '' ? message.title : renderTemplate(titleTpl, vars),
+    body: bodyTpl === '' ? message.body : renderTemplate(bodyTpl, vars),
+  }
+}
+
 /** Gotify priority number for a level. */
 function gotifyPriority(level: PushMessage['level'], raw: string): number {
   const custom = Number(raw)
@@ -131,14 +188,25 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
     case 'webhook': {
       const url = need(channel, 'url', 'url')
       const headers = { 'content-type': 'application/json; charset=utf-8', ...parseHeaderMap(f('headers')) }
-      const body = JSON.stringify({
-        title: message.title,
-        message: message.body,
-        level: message.level,
-        scenario: message.scenario,
-        source: message.source,
-        timestamp: new Date(message.timestamp).toISOString(),
-      })
+      const jsonBody = f('jsonBody')
+      let body: string
+      if (jsonBody === '') {
+        body = JSON.stringify({
+          title: message.title,
+          message: message.body,
+          level: message.level,
+          scenario: message.scenario,
+          source: message.source,
+          timestamp: new Date(message.timestamp).toISOString(),
+        })
+      } else {
+        body = renderTemplate(jsonBody, renderVars(message, message.title, message.body), true)
+        try {
+          JSON.parse(body)
+        } catch {
+          throw new ChannelBuildError('webhook jsonBody does not render to valid JSON')
+        }
+      }
       return { url, method: 'POST', headers, body, check: statusOk }
     }
     case 'bark': {
@@ -179,11 +247,14 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
     }
     case 'wecom': {
       const key = need(channel, 'key', 'webhook key')
+      const payload = channel.markdown
+        ? { msgtype: 'markdown', markdown: { content: text } }
+        : { msgtype: 'text', text: { content: text } }
       return {
         url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=' + enc(key),
         method: 'POST',
         headers: { 'content-type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ msgtype: 'text', text: { content: text } }),
+        body: JSON.stringify(payload),
         check: (status, json) => checkCode(status, json, 'errcode', 0),
       }
     }
@@ -199,14 +270,24 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
         url,
         method: 'POST',
         headers: { 'content-type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ msgtype: 'text', text: { content: text } }),
+        body: JSON.stringify(channel.markdown
+          ? { msgtype: 'markdown', markdown: { title: message.title, text } }
+          : { msgtype: 'text', text: { content: text } }),
         check: (status, json) => checkCode(status, json, 'errcode', 0),
       }
     }
     case 'feishu': {
       const url = need(channel, 'url', 'webhook url')
       const secret = f('secret')
-      const payload: Record<string, unknown> = { msg_type: 'text', content: { text } }
+      const payload: Record<string, unknown> = channel.markdown
+        ? {
+          msg_type: 'interactive',
+          card: {
+            header: { title: { tag: 'plain_text', content: message.title } },
+            elements: [{ tag: 'markdown', content: text }],
+          },
+        }
+        : { msg_type: 'text', content: { text } }
       if (secret !== '') {
         const timestamp = String(Math.floor(now / 1000))
         payload['timestamp'] = timestamp
@@ -681,13 +762,14 @@ export async function sendToChannel(
   const label = receiptLabel(channel)
   const timeoutMs = options.timeoutMs ?? 15000
   try {
+    const effective = effectiveMessage(channel, message)
     if (channel.type === 'smtp') {
       const deliver = options.smtpDeliver ?? defaultSmtpDeliver
-      await withTimeout(deliver(channel, message), timeoutMs)
+      await withTimeout(deliver(channel, effective), timeoutMs)
       return { id, type, label, ok: true }
     }
     const now = options.now ?? Date.now()
-    const call = buildHttpCall(channel, message, now)
+    const call = buildHttpCall(channel, effective, now)
     const fetchImpl = options.fetchImpl ?? (globalThis.fetch as unknown as FetchLike | undefined)
     if (fetchImpl === undefined) return { id, type, label, ok: false, error: 'no fetch available' }
     const init: { method: string; headers: Record<string, string>; body?: string } = { method: call.method, headers: { ...call.headers } }
@@ -713,6 +795,7 @@ export async function dispatchChannels(
   message: PushMessage,
   options: DispatchOptions = {},
 ): Promise<ChannelReceipt[]> {
-  const enabled = channels.filter(channel => channel.enabled)
+  const enabled = channels.filter(channel =>
+    channel.enabled && (channel.scenarios.length === 0 || channel.scenarios.includes(message.scenario)))
   return Promise.all(enabled.map(channel => sendToChannel(channel, message, options)))
 }

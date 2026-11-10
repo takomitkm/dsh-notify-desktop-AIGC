@@ -49,6 +49,18 @@ export interface ChannelConfig {
     readonly label: string;
     /** Every field value, keyed by {@link ChannelField.key}. */
     readonly fields: Readonly<Record<string, string>>;
+    /**
+     * Which situations this channel receives (the scenario ids). Empty means all
+     * of them; a non-empty list narrows it, so e.g. an errors-only channel only
+     * gets errors.
+     */
+    readonly scenarios: readonly string[];
+    /** Title template override for this channel; empty inherits the situation text. */
+    readonly titleTemplate: string;
+    /** Body template override for this channel; empty inherits the situation text. */
+    readonly bodyTemplate: string;
+    /** Send markdown where the channel supports it (企业微信 / 钉钉 / 飞书). */
+    readonly markdown: boolean;
 }
 /** One message to push out through the channels. */
 export interface PushMessage {
@@ -64,6 +76,12 @@ export interface PushMessage {
     readonly source: string;
     /** When the signal fired (ms). */
     readonly timestamp: number;
+    /**
+     * Raw placeholder values a per-channel template can use: `工作区`, `状态`,
+     * `内容`, `分钟`. The host renders a channel's title/body override against
+     * these, so one message can be re-worded per channel.
+     */
+    readonly vars: Readonly<Record<string, string>>;
 }
 /** The outcome of delivering one message to one channel. */
 export interface ChannelReceipt {

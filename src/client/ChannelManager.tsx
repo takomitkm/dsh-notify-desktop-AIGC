@@ -17,14 +17,28 @@ import {
   type ChannelType,
 } from '../channels.ts'
 import type { ChannelReceipt } from '../channels.ts'
+import { SCENARIO_IDS } from '../scenarios.ts'
 import { deleteChannel, listChannels, saveChannel, testPush, type ChannelDraft } from './channels.ts'
 
 /** The translator the card needs (string keys keep the catalogue decoupled). */
 type Translate = (key: string, params?: Record<string, string>) => string
 
+/** The locale key of each scenario's display name. */
+const SCENARIO_LABEL: Readonly<Record<string, string>> = {
+  completed: 'settings.scenario.completed',
+  error: 'settings.scenario.error',
+  aborted: 'settings.scenario.aborted',
+  blocked: 'settings.scenario.blocked',
+  'max-tokens': 'settings.scenario.maxTokens',
+  approval: 'settings.scenario.approval',
+  question: 'settings.scenario.question',
+  'plan-review': 'settings.scenario.planReview',
+  reminder: 'settings.scenario.reminder',
+}
+
 /** A fresh empty draft for a given type. */
 function emptyDraft(type: ChannelType): ChannelDraft {
-  return { id: '', type, enabled: true, label: '', fields: {} }
+  return { id: '', type, enabled: true, label: '', fields: {}, scenarios: [], titleTemplate: '', bodyTemplate: '', markdown: false }
 }
 
 /** How many receipts are failing. */
@@ -67,7 +81,17 @@ export function ChannelManager(props: { readonly t: Translate }): JSX.Element {
   const beginEdit = (channel: ChannelConfig): void => {
     setError(null)
     setNote(null)
-    setDraft({ id: channel.id, type: channel.type, enabled: channel.enabled, label: channel.label, fields: { ...channel.fields } })
+    setDraft({
+      id: channel.id,
+      type: channel.type,
+      enabled: channel.enabled,
+      label: channel.label,
+      fields: { ...channel.fields },
+      scenarios: [...channel.scenarios],
+      titleTemplate: channel.titleTemplate,
+      bodyTemplate: channel.bodyTemplate,
+      markdown: channel.markdown,
+    })
   }
 
   const updateDraft = (patch: Partial<ChannelDraft>): void => {
@@ -96,7 +120,17 @@ export function ChannelManager(props: { readonly t: Translate }): JSX.Element {
   }
 
   const toggle = async (channel: ChannelConfig): Promise<void> => {
-    const outcome = await saveChannel({ id: channel.id, type: channel.type, enabled: !channel.enabled, label: channel.label, fields: { ...channel.fields } })
+    const outcome = await saveChannel({
+      id: channel.id,
+      type: channel.type,
+      enabled: !channel.enabled,
+      label: channel.label,
+      fields: { ...channel.fields },
+      scenarios: [...channel.scenarios],
+      titleTemplate: channel.titleTemplate,
+      bodyTemplate: channel.bodyTemplate,
+      markdown: channel.markdown,
+    })
     if (outcome.ok) setChannels([...outcome.channels])
     else setError(t('settings.push.saveFailed') + ' (' + outcome.problem + ')')
   }
@@ -226,6 +260,64 @@ export function ChannelManager(props: { readonly t: Translate }): JSX.Element {
               )}
             </div>
           ))}
+          <div className="dsh_notify_pushFormRow">
+            <span className="dsh_notify_pushFormLabel">{t('settings.push.scenariosLabel')}</span>
+            <span className="dsh_notify_pushScenarios">
+              {SCENARIO_IDS.map(scenario => (
+                <label key={scenario} className="dsh_notify_pushScenario">
+                  <input
+                    type="checkbox"
+                    checked={draft.scenarios.includes(scenario)}
+                    disabled={busy}
+                    onChange={event => {
+                      updateDraft({
+                        scenarios: event.target.checked
+                          ? [...draft.scenarios, scenario]
+                          : draft.scenarios.filter(id => id !== scenario),
+                      })
+                    }}
+                  />
+                  <span>{t(SCENARIO_LABEL[scenario] ?? scenario)}</span>
+                </label>
+              ))}
+            </span>
+          </div>
+          <div className="dsh_notify_pushFormRow">
+            <span className="dsh_notify_pushFormLabel">{t('settings.push.titleTemplateLabel')}</span>
+            <input
+              className="dsh_notify_renameInput"
+              type="text"
+              maxLength={400}
+              value={draft.titleTemplate}
+              placeholder={t('settings.push.templatePlaceholder')}
+              disabled={busy}
+              onChange={event => { updateDraft({ titleTemplate: event.target.value }) }}
+            />
+          </div>
+          <div className="dsh_notify_pushFormRow">
+            <span className="dsh_notify_pushFormLabel">{t('settings.push.bodyTemplateLabel')}</span>
+            <input
+              className="dsh_notify_renameInput"
+              type="text"
+              maxLength={1000}
+              value={draft.bodyTemplate}
+              placeholder={t('settings.push.templatePlaceholder')}
+              disabled={busy}
+              onChange={event => { updateDraft({ bodyTemplate: event.target.value }) }}
+            />
+          </div>
+          {draftType === 'wecom' || draftType === 'dingtalk' || draftType === 'feishu' ? (
+            <div className="dsh_notify_pushFormRow">
+              <span className="dsh_notify_pushFormLabel">{t('settings.push.markdownLabel')}</span>
+              <input
+                type="checkbox"
+                checked={draft.markdown}
+                disabled={busy}
+                onChange={event => { updateDraft({ markdown: event.target.checked }) }}
+              />
+              <span className="dsh_notify_rowDesc">{t('settings.push.markdownHint')}</span>
+            </div>
+          ) : null}
           <div className="dsh_notify_customControls">
             <button type="button" className="dsh_notify_button" disabled={busy} onClick={() => { void commit() }}>{t('settings.push.save')}</button>
             <button type="button" className="dsh_notify_button" disabled={busy} onClick={() => { setDraft(null); setError(null) }}>{t('settings.push.cancel')}</button>

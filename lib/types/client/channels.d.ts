@@ -6,6 +6,14 @@ export interface ChannelDraft {
     readonly enabled: boolean;
     readonly label: string;
     readonly fields: Record<string, string>;
+    /** Scenario ids this channel receives; empty = all. */
+    readonly scenarios: readonly string[];
+    /** Title override template; '' inherits the situation text. */
+    readonly titleTemplate: string;
+    /** Body override template; '' inherits the situation text. */
+    readonly bodyTemplate: string;
+    /** Send markdown where supported. */
+    readonly markdown: boolean;
 }
 /** The outcome of saving one channel. */
 export type ChannelSaveOutcome = {

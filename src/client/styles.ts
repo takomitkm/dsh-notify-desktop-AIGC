@@ -392,6 +392,8 @@ export const cssText = `
 .dsh_notify_pushFormRow { display: flex; align-items: center; gap: 10px; }
 .dsh_notify_pushFormLabel { flex: 0 0 132px; font-size: 12px; opacity: 0.8; }
 .dsh_notify_pushFormRow .dsh_notify_renameInput { flex: 1 1 auto; }
+.dsh_notify_pushScenarios { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.dsh_notify_pushScenario { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
 
 /*
  * The two-level pickers: the trigger keeps the old select's footprint, the

@@ -14,14 +14,13 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  CHANNEL_FIELDS,
   CHANNEL_ID_PREFIX,
   CHANNEL_LIMIT,
   isChannelId,
   isChannelType,
   missingRequiredFields,
+  normalizeChannel,
   type ChannelConfig,
-  type ChannelType,
 } from './channels.ts'
 
 /** The folder the channels file lives in. */
@@ -44,35 +43,11 @@ interface StoredFile {
 }
 
 /**
- * Read one stored channel, dropping anything malformed. Unlike
- * {@link normalizeChannel} this does not enforce required fields: a half-filled
- * channel the user is still editing is kept so their draft round-trips.
- */
-function readStoredChannel(value: unknown): ChannelConfig | null {
-  if (value === null || typeof value !== 'object') return null
-  const record = value as Record<string, unknown>
-  if (!isChannelId(record['id'])) return null
-  if (!isChannelType(record['type'])) return null
-  const type = record['type']
-  const rawFields = record['fields']
-  const source = rawFields !== null && typeof rawFields === 'object' ? rawFields as Record<string, unknown> : {}
-  const fields: Record<string, string> = {}
-  for (const field of CHANNEL_FIELDS[type]) {
-    const raw = source[field.key]
-    fields[field.key] = typeof raw === 'string' ? raw.trim().slice(0, 4096) : ''
-  }
-  return {
-    id: record['id'],
-    type,
-    enabled: record['enabled'] === true,
-    label: typeof record['label'] === 'string' ? record['label'].trim().slice(0, 60) : '',
-    fields,
-  }
-}
-
-/**
  * Read every channel. A missing, unreadable or malformed file reads as an empty
- * list rather than an error: the caller always has something usable.
+ * list rather than an error: the caller always has something usable. Each entry
+ * is normalized by {@link normalizeChannel}, which keeps a half-filled draft
+ * (it only drops an entry that is structurally unusable, never one that is
+ * merely missing a required field).
  * @param root - the app-data root.
  * @returns the configured channels, capped and validated.
  */
@@ -93,7 +68,7 @@ export function readChannels(root: string): ChannelConfig[] {
   if (!Array.isArray(channels)) return []
   const kept: ChannelConfig[] = []
   for (const entry of channels) {
-    const channel = readStoredChannel(entry)
+    const channel = normalizeChannel(entry)
     if (channel === null) continue
     kept.push(channel)
     if (kept.length >= CHANNEL_LIMIT) break
@@ -145,22 +120,9 @@ function candidateOf(raw: unknown): ChannelConfig | { problem: ChannelStoreProbl
   if (raw === null || typeof raw !== 'object') return { problem: 'type' }
   const record = raw as Record<string, unknown>
   if (!isChannelType(record['type'])) return { problem: 'type' }
-  const type: ChannelType = record['type']
   const id = isChannelId(record['id']) ? record['id'] : CHANNEL_ID_PREFIX + randomUUID().replace(/-/g, '').slice(0, 12)
-  const rawFields = record['fields']
-  const source = rawFields !== null && typeof rawFields === 'object' ? rawFields as Record<string, unknown> : {}
-  const fields: Record<string, string> = {}
-  for (const field of CHANNEL_FIELDS[type]) {
-    const raw = source[field.key]
-    fields[field.key] = typeof raw === 'string' ? raw.trim().slice(0, 4096) : ''
-  }
-  const channel: ChannelConfig = {
-    id,
-    type,
-    enabled: record['enabled'] === true,
-    label: typeof record['label'] === 'string' ? record['label'].trim().slice(0, 60) : '',
-    fields,
-  }
+  const channel = normalizeChannel({ ...record, id })
+  if (channel === null) return { problem: 'type' }
   const missing = missingRequiredFields(channel)
   if (missing.length > 0) return { problem: 'fields', missing }
   return channel

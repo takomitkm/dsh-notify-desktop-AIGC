@@ -312,6 +312,12 @@ export function apply(ctx: ClientContext): void {
       scenario,
       source: parts.workspace,
       timestamp: Date.now(),
+      vars: {
+        '工作区': parts.workspace,
+        '状态': parts.status,
+        '内容': parts.body,
+        '分钟': parts.minutes ?? '',
+      },
     })
   }
 

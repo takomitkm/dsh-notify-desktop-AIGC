@@ -12,6 +12,8 @@
  * channels.json`), never in the browser's localStorage.
  */
 
+import { SCENARIO_IDS } from './scenarios.ts'
+
 /** Every channel kind this build can deliver to, in catalogue order. */
 export const CHANNEL_TYPES = Object.freeze([
   'webhook',
@@ -77,6 +79,7 @@ export const CHANNEL_FIELDS: Readonly<Record<ChannelType, readonly ChannelField[
   webhook: fields([
     { key: 'url', labelKey: 'settings.push.field.url', required: true, placeholder: 'https://example.com/hook' },
     { key: 'headers', labelKey: 'settings.push.field.headers', required: false, placeholder: '{"Authorization":"Bearer ..."}' },
+    { key: 'jsonBody', labelKey: 'settings.push.field.jsonBody', required: false, placeholder: '{"text":"{title}\\n{body}"}' },
   ]),
   bark: fields([
     { key: 'deviceKey', labelKey: 'settings.push.field.barkKey', required: true, secret: true, kind: 'password' },
@@ -186,6 +189,18 @@ export interface ChannelConfig {
   readonly label: string
   /** Every field value, keyed by {@link ChannelField.key}. */
   readonly fields: Readonly<Record<string, string>>
+  /**
+   * Which situations this channel receives (the scenario ids). Empty means all
+   * of them; a non-empty list narrows it, so e.g. an errors-only channel only
+   * gets errors.
+   */
+  readonly scenarios: readonly string[]
+  /** Title template override for this channel; empty inherits the situation text. */
+  readonly titleTemplate: string
+  /** Body template override for this channel; empty inherits the situation text. */
+  readonly bodyTemplate: string
+  /** Send markdown where the channel supports it (企业微信 / 钉钉 / 飞书). */
+  readonly markdown: boolean
 }
 
 /** One message to push out through the channels. */
@@ -202,6 +217,12 @@ export interface PushMessage {
   readonly source: string
   /** When the signal fired (ms). */
   readonly timestamp: number
+  /**
+   * Raw placeholder values a per-channel template can use: `工作区`, `状态`,
+   * `内容`, `分钟`. The host renders a channel's title/body override against
+   * these, so one message can be re-worded per channel.
+   */
+  readonly vars: Readonly<Record<string, string>>
 }
 
 /** The outcome of delivering one message to one channel. */
@@ -246,6 +267,18 @@ export function missingRequiredFields(channel: ChannelConfig): string[] {
   return missing
 }
 
+/** Keep only the known scenario ids, de-duplicated, in the stored order. */
+function knownScenarios(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const entry of value) {
+    if (typeof entry === 'string' && (SCENARIO_IDS as readonly string[]).includes(entry) && !out.includes(entry)) {
+      out.push(entry)
+    }
+  }
+  return out
+}
+
 /**
  * Validate and normalize one channel value (from disk or the renderer). Unknown
  * fields are dropped, non-string fields become '', and a structurally invalid
@@ -270,5 +303,15 @@ export function normalizeChannel(value: unknown): ChannelConfig | null {
     const raw = source[field.key]
     fields[field.key] = typeof raw === 'string' ? raw.trim().slice(0, 4096) : ''
   }
-  return { id: record['id'], type, enabled, label, fields }
+  return {
+    id: record['id'],
+    type,
+    enabled,
+    label,
+    fields,
+    scenarios: knownScenarios(record['scenarios']),
+    titleTemplate: typeof record['titleTemplate'] === 'string' ? record['titleTemplate'].slice(0, 400) : '',
+    bodyTemplate: typeof record['bodyTemplate'] === 'string' ? record['bodyTemplate'].slice(0, 1000) : '',
+    markdown: record['markdown'] === true,
+  }
 }

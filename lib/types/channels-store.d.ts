@@ -7,7 +7,10 @@ export declare function channelsFile(root: string): string;
 export declare const CHANNELS_STORE_VERSION = 1;
 /**
  * Read every channel. A missing, unreadable or malformed file reads as an empty
- * list rather than an error: the caller always has something usable.
+ * list rather than an error: the caller always has something usable. Each entry
+ * is normalized by {@link normalizeChannel}, which keeps a half-filled draft
+ * (it only drops an entry that is structurally unusable, never one that is
+ * merely missing a required field).
  * @param root - the app-data root.
  * @returns the configured channels, capped and validated.
  */
