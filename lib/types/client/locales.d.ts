@@ -240,7 +240,7 @@ export declare const zh: {
     readonly 'settings.push.field.pushKey': "PushKey";
     readonly 'settings.push.field.smtpHost': "SMTP 服务器";
     readonly 'settings.push.field.smtpPort': "端口";
-    readonly 'settings.push.field.smtpSecure': "加密方式 (ssl / starttls / none)";
+    readonly 'settings.push.field.smtpSecure': "加密方式 (ssl / none)";
     readonly 'settings.push.field.smtpUser': "用户名";
     readonly 'settings.push.field.smtpPass': "密码";
     readonly 'settings.push.field.smtpFrom': "发件人";

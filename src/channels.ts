@@ -128,7 +128,7 @@ export const CHANNEL_FIELDS: Readonly<Record<ChannelType, readonly ChannelField[
   smtp: fields([
     { key: 'host', labelKey: 'settings.push.field.smtpHost', required: true, placeholder: 'smtp.example.com' },
     { key: 'port', labelKey: 'settings.push.field.smtpPort', required: true, kind: 'number', placeholder: '465' },
-    { key: 'secure', labelKey: 'settings.push.field.smtpSecure', required: true, kind: 'select', options: ['ssl', 'starttls', 'none'] },
+    { key: 'secure', labelKey: 'settings.push.field.smtpSecure', required: false, kind: 'select', options: ['ssl', 'none'] },
     { key: 'user', labelKey: 'settings.push.field.smtpUser', required: false },
     { key: 'pass', labelKey: 'settings.push.field.smtpPass', required: false, secret: true, kind: 'password' },
     { key: 'from', labelKey: 'settings.push.field.smtpFrom', required: true, placeholder: 'dsh@example.com' },
