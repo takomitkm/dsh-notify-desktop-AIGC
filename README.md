@@ -189,6 +189,63 @@ and a corrupt file reads as an empty library instead of crashing. The settings s
 when a template is deleted the situation falls back to the default text. **Restart the app after editing
 this file by hand** — the client loads it once at start-up.
 
+## External push (21 channels)
+
+Besides the Windows toast, the same notification can go out to your phone / chat / mailbox (the
+multi-channel push that 青龙 / MAA / 三月七小助手 have). In **Settings → Notifications → "External push"**,
+use **Add channel**, pick a type, fill the fields and save; **Test** checks one channel, **Test all** checks
+every enabled one. Channels are delivered independently, so one failure never blocks the rest.
+
+**When it fires.** Push rides the same decision as the toast: only when the situation "should notify" **and
+DSH is not in the foreground** — nothing bombards you while you are at the computer. The master switch,
+per-situation switches, subagent gears and the viewed-session switch all apply.
+
+**Where it lives.** Channels and secrets are stored in `%LOCALAPPDATA%\dsh-notify\channels.json` (never in
+the browser's localStorage), written via a temp file plus a rename. Restart the app after editing it by hand.
+
+**What to fill per channel.** `*` = required; the rest may stay empty.
+
+| Channel | Required | Optional | Notes / example |
+|---|---|---|---|
+| Generic Webhook | URL* | headers (JSON) | POST `{title,message,level,scenario,source,timestamp}`; 2xx = success |
+| Bark | device key* | server/sound/group | server defaults to `https://api.day.app` |
+| ServerChan | SendKey* | — | Turbo `SCT…` (`sctapi.ftqq.com`) |
+| PushPlus | token* | topic | `www.pushplus.plus` |
+| WeCom | webhook key* | — | group-bot key |
+| DingTalk | URL* | signing secret | bot webhook; signing added when a secret is set |
+| Feishu | URL* | signing secret | custom-bot webhook; signing added when a secret is set |
+| Telegram | bot token* / chat id* | API base | defaults to `https://api.telegram.org` |
+| ntfy | topic* | server/token | defaults to `https://ntfy.sh` |
+| Gotify | server* / token* | priority | e.g. `https://gotify.example.com` |
+| Slack | URL* | — | incoming webhook |
+| Discord | URL* | — | webhook |
+| WxPusher | appToken* | UID / topic IDs | UID for one user; comma-separated topic IDs to broadcast |
+| PushDeer | pushKey* | server | defaults to `https://api2.pushdeer.com` |
+| Qmsg | Qmsg key* | target QQ | `qmsg.zendee.cn` |
+| MeoW | nickname* | server | defaults to `https://api.chuckfang.com` |
+| KOOK | token* / target id* | — | bot token + channel/user id |
+| OneBot (QQ) | server* / target* | message type | go-cqhttp etc.; `http://127.0.0.1:5700`; private/group + QQ/group id |
+| Matrix | server* / room id* / token* | — | room like `!abc:example.com` + access token |
+| Pushover | token* / user key* | — | application token + user key |
+| Email (SMTP) | host* / port* / from* / to* | encryption/user/pass | 465=ssl, 587=starttls, 25=none; `to` comma separated |
+
+**SMTP encryption.** `ssl` = implicit TLS on 465; `starttls` = plain on 587 then upgrade to TLS; `none` =
+plain. Authentication uses AUTH LOGIN (username + password).
+
+**The config file looks like this** (you normally never edit it by hand — the UI is enough):
+
+```json
+{
+  "version": 1,
+  "channels": [
+    { "id": "ch_a1b2c3d4e5f6", "type": "bark", "enabled": true, "label": "My iPhone",
+      "fields": { "deviceKey": "your-key", "server": "", "sound": "", "group": "dsh" } },
+    { "id": "ch_f6e5d4c3b2a1", "type": "dingtalk", "enabled": true, "label": "DingTalk group",
+      "fields": { "url": "https://oapi.dingtalk.com/robot/send?access_token=…", "secret": "SEC…" } }
+  ]
+}
+```
+
 ## Compatibility
 
 | | |

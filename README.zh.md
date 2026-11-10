@@ -165,6 +165,58 @@ scoop install ffmpeg           # 已装 Scoop
 按情况分组、每个情况最多 3 套；写入走临时文件 + rename，损坏时按空库处理不会崩。设置里只存"当前用哪一套"的 id；
 模板被删掉时该情况自动回退默认文本。**手动编辑这个文件后需要重启桌面端**（客户端启动时加载一次）。
 
+## 外部推送（21 渠道）
+
+除了 Windows Toast，同一条通知还能推到手机 / 聊天软件 / 邮箱（青龙、MAA、三月七小助手那套多路推送）。
+在 **设置 → 通知 → 「外部推送」** 卡里「添加渠道」，选类型、填字段、保存；「测试」单测一个渠道，「全部测试」测所有启用渠道。
+每个渠道独立投递，一条失败不影响其它。
+
+**触发规则。** 推送和 Toast 同源：只有"该提醒"且 **DSH 不在前台**时才推——人在电脑前不会轰炸；总开关、各情况、子代理、当前会话开关都生效。
+
+**存在哪里。** 渠道和密钥保存在 `%LOCALAPPDATA%\dsh-notify\channels.json`（不进浏览器 localStorage），写入走临时文件 + rename。手动改文件后需重启桌面端。
+
+**逐渠道填什么。** `*` 为必填；其余可留空。
+
+| 渠道 | 必填 | 选填 | 说明 / 示例 |
+|---|---|---|---|
+| 通用 Webhook | URL* | 请求头(JSON) | POST `{title,message,level,scenario,source,timestamp}`；2xx 即成功 |
+| Bark | 设备 Key* | 服务器/铃声/分组 | 服务器默认 `https://api.day.app` |
+| Server酱 | SendKey* | — | Turbo 版 `SCT…`（`sctapi.ftqq.com`） |
+| PushPlus | Token* | 主题 | `www.pushplus.plus` |
+| 企业微信 | Webhook Key* | — | 群机器人的 key |
+| 钉钉 | URL* | 加签密钥 | 机器人 webhook；填密钥自动加签 |
+| 飞书 | URL* | 加签密钥 | 自定义机器人 webhook；填密钥自动加签 |
+| Telegram | Bot Token* / Chat ID* | API 地址 | 默认 `https://api.telegram.org` |
+| ntfy | 主题* | 服务器/Token | 默认 `https://ntfy.sh` |
+| Gotify | 服务器* / Token* | 优先级 | 如 `https://gotify.example.com` |
+| Slack | URL* | — | incoming webhook |
+| Discord | URL* | — | webhook |
+| WxPusher | AppToken* | UID / 主题 ID | UID 单推；主题 ID 逗号分隔广播 |
+| PushDeer | PushKey* | 服务器 | 默认 `https://api2.pushdeer.com` |
+| Qmsg酱 | Qmsg Key* | 收件 QQ | `qmsg.zendee.cn` |
+| MeoW | 昵称* | 服务器 | 默认 `https://api.chuckfang.com` |
+| KOOK | Token* / 目标 ID* | — | 机器人 token + 频道/用户 id |
+| OneBot (QQ) | 服务器* / 目标* | 消息类型 | go-cqhttp 等；`http://127.0.0.1:5700`；private/group + QQ/群号 |
+| Matrix | 服务器* / 房间 ID* / Token* | — | 房间如 `!abc:example.com` + access token |
+| Pushover | Token* / 用户 Key* | — | application token + user key |
+| 邮件 (SMTP) | 服务器* / 端口* / 发件人* / 收件人* | 加密/用户名/密码 | 465=ssl、587=starttls、25=none；收件人逗号分隔 |
+
+**SMTP 加密。** `ssl` = 465 隐式 TLS；`starttls` = 587 先明文再升级 TLS；`none` = 明文。认证用 AUTH LOGIN（用户名 + 密码）。
+
+**配置文件长这样**（一般不用手改，界面填即可）：
+
+```json
+{
+  "version": 1,
+  "channels": [
+    { "id": "ch_a1b2c3d4e5f6", "type": "bark", "enabled": true, "label": "我的 iPhone",
+      "fields": { "deviceKey": "你的key", "server": "", "sound": "", "group": "dsh" } },
+    { "id": "ch_f6e5d4c3b2a1", "type": "dingtalk", "enabled": true, "label": "钉钉群",
+      "fields": { "url": "https://oapi.dingtalk.com/robot/send?access_token=…", "secret": "SEC…" } }
+  ]
+}
+```
+
 ## 兼容性
 
 | | |
