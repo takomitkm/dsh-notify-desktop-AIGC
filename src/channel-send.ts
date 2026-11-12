@@ -18,6 +18,7 @@ import { connect as netConnect, type Socket } from 'node:net'
 import { connect as tlsConnect } from 'node:tls'
 import {
   channelTypeKey,
+  detectChannelValue,
   fieldValue,
   type ChannelConfig,
   type ChannelReceipt,
@@ -205,6 +206,17 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
   const f = (key: string): string => fieldValue(channel, key)
   const text = joinedText(message)
   switch (channel.type) {
+    case 'auto': {
+      const raw = need(channel, 'value', 'content')
+      const detected = detectChannelValue(raw)
+      if (detected === null) {
+        throw new ChannelBuildError('无法识别：请粘贴群机器人 URL、Server酱 key、Bark key、ntfy 主题，或任意 https 链接')
+      }
+      if (detected.missing.length > 0) {
+        throw new ChannelBuildError('识别为 ' + detected.type + '，但缺少：' + detected.missing.join(', '))
+      }
+      return buildHttpCall({ ...channel, type: detected.type, fields: detected.fields }, message, now)
+    }
     case 'webhook': {
       const url = need(channel, 'url', 'url')
       const headers = { 'content-type': 'application/json; charset=utf-8', ...parseHeaderMap(f('headers')) }

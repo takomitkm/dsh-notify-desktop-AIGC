@@ -179,6 +179,7 @@ scoop install ffmpeg           # 已装 Scoop
 
 | 渠道 | 必填 | 选填 | 说明 / 示例 |
 |---|---|---|---|
+| 自动识别 | 粘贴任意* | — | 按域名/前缀自己判断：群机器人 URL、Server酱 key、Bark key、ntfy 主题、任意 https → 通用 webhook；识别不了会提示改选具体渠道 |
 | 通用 Webhook | URL* | 请求头(JSON) | POST `{title,message,level,scenario,source,timestamp}`；2xx 即成功 |
 | Bark | 设备 Key* | 服务器/铃声/分组 | 服务器默认 `https://api.day.app` |
 | Server酱 | SendKey* | — | `SCT…`（Turbo → `sctapi.ftqq.com`）或 `sctp…`（Server酱³ → `{uid}.push.ft07.com`）；从 https://sct.ftqq.com 取 key |

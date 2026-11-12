@@ -288,6 +288,11 @@ export const zh = {
   'settings.push.templatePlaceholder': '留空则沿用默认；可用 {工作区} {状态} {内容} {分钟}',
   'settings.push.markdownLabel': 'Markdown 富文本',
   'settings.push.markdownHint': '该渠道支持时用 markdown 发送（企微/钉钉/飞书）',
+  'settings.push.type.auto': '自动识别',
+  'settings.push.field.value': '粘贴 URL / key / token',
+  'settings.push.detected': '识别为：{type}',
+  'settings.push.detectedMissing': '识别为 {type}，还需：{fields}（请改选该渠道填写）',
+  'settings.push.detectedUnknown': '无法识别，请改选具体渠道',
 } as const
 
 /** The dictionary key set. */
@@ -569,6 +574,11 @@ export const en = {
   'settings.push.templatePlaceholder': 'Leave empty to inherit; {工作区} {状态} {内容} {分钟}',
   'settings.push.markdownLabel': 'Markdown',
   'settings.push.markdownHint': 'Send as markdown where the channel supports it (WeCom/DingTalk/Feishu)',
+  'settings.push.type.auto': 'Auto detect',
+  'settings.push.field.value': 'Paste a URL / key / token',
+  'settings.push.detected': 'Detected: {type}',
+  'settings.push.detectedMissing': 'Detected {type}; still needs: {fields} (pick that type to fill it)',
+  'settings.push.detectedUnknown': 'Not recognized — pick a channel type',
 } satisfies Record<NotifyKey, string>
 
 /** The locale namespace registered under ctx.locale. */

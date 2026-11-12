@@ -12,7 +12,7 @@
  * channels.json`), never in the browser's localStorage.
  */
 /** Every channel kind this build can deliver to, in catalogue order. */
-export declare const CHANNEL_TYPES: readonly ["webhook", "bark", "serverchan", "pushplus", "wecom", "dingtalk", "feishu", "telegram", "ntfy", "gotify", "slack", "discord", "wxpusher", "pushdeer", "qmsg", "meow", "kook", "onebot", "matrix", "pushover", "smtp"];
+export declare const CHANNEL_TYPES: readonly ["auto", "webhook", "bark", "serverchan", "pushplus", "wecom", "dingtalk", "feishu", "telegram", "ntfy", "gotify", "slack", "discord", "wxpusher", "pushdeer", "qmsg", "meow", "kook", "onebot", "matrix", "pushover", "smtp"];
 /** One channel kind. */
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 /** Whether a value names a known channel type. */
@@ -117,3 +117,25 @@ export declare function missingRequiredFields(channel: ChannelConfig): string[];
  * @returns the clean channel, or null when it is not usable.
  */
 export declare function normalizeChannel(value: unknown): ChannelConfig | null;
+/** One auto-detection result: the channel type a pasted value looks like. */
+export interface ChannelDetection {
+    readonly type: ChannelType;
+    readonly fields: Record<string, string>;
+    /** Required fields the pasted value does not provide (empty = usable as-is). */
+    readonly missing: string[];
+}
+/**
+ * Guess which channel a pasted value belongs to.
+ *
+ * The "auto" channel lets the user paste one string — a group-bot webhook, a
+ * Server酱 key, a Bark device key, an ntfy topic URL, or any https URL — and
+ * this decides the concrete channel. URLs are matched by host; bare values only
+ * by an unmistakable prefix (`SCT…` / `sctp…` / `AT_…` / a Telegram bot token).
+ * A non-empty `missing` means the type was recognized but the paste cannot
+ * supply every required field (for example a Telegram bot token with no chat
+ * id). The console URLs (`sct.ftqq.com`, `sc3.ft07.com`) are not endpoints and
+ * read as unrecognized.
+ * @param raw - whatever the user pasted.
+ * @returns the detection, or null when nothing matches.
+ */
+export declare function detectChannelValue(raw: string): ChannelDetection | null;

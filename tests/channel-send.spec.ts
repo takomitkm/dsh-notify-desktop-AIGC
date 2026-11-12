@@ -7,7 +7,7 @@ import {
   sendToChannel,
   type FetchLike,
 } from '../src/channel-send.ts'
-import type { ChannelConfig, ChannelType, PushMessage } from '../src/channels.ts'
+import { detectChannelValue, type ChannelConfig, type ChannelType, type PushMessage } from '../src/channels.ts'
 
 /** A configured channel for the tests. */
 function ch(type: ChannelType, fields: Record<string, string>, extra: Partial<ChannelConfig> = {}): ChannelConfig {
@@ -289,5 +289,45 @@ describe('channel dispatch — format & targeting', () => {
     const call = buildHttpCall(ch('ntfy', { topic: 't' }), { ...message, title: '工作区 · 任务完成' }, 0)
     expect(call.headers['Title']).toBeUndefined()
     expect(call.body).toContain('工作区 · 任务完成')
+  })
+})
+
+describe('channel auto-detection', () => {
+  it('recognizes group-bot webhooks by host', () => {
+    expect(detectChannelValue('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=K')?.type).toBe('wecom')
+    expect(detectChannelValue('https://oapi.dingtalk.com/robot/send?access_token=X')?.type).toBe('dingtalk')
+    expect(detectChannelValue('https://open.feishu.cn/open-apis/bot/v2/hook/Y')?.type).toBe('feishu')
+    expect(detectChannelValue('https://hooks.slack.com/services/T/B/X')?.type).toBe('slack')
+    expect(detectChannelValue('https://discord.com/api/webhooks/1/2')?.type).toBe('discord')
+  })
+
+  it('recognizes Server酱 / Bark / ntfy / Qmsg / Gotify URLs', () => {
+    expect(detectChannelValue('https://sctapi.ftqq.com/SCT123.send')?.fields['sendKey']).toBe('SCT123')
+    expect(detectChannelValue('https://123.push.ft07.com/send/sctp123tABC.send')?.fields['sendKey']).toBe('sctp123tABC')
+    expect(detectChannelValue('https://api.day.app/DEVKEY')?.fields['deviceKey']).toBe('DEVKEY')
+    expect(detectChannelValue('https://ntfy.sh/mytopic')?.fields['topic']).toBe('mytopic')
+    expect(detectChannelValue('https://qmsg.zendee.cn/send/K')?.fields['key']).toBe('K')
+    expect(detectChannelValue('https://gotify.example.com/message?token=T')?.type).toBe('gotify')
+  })
+
+  it('recognizes bare prefixed keys and leaves console URLs unknown', () => {
+    expect(detectChannelValue('SCT123')?.type).toBe('serverchan')
+    expect(detectChannelValue('sctp123tABC')?.type).toBe('serverchan')
+    expect(detectChannelValue('AT_abc123')?.type).toBe('wxpusher')
+    expect(detectChannelValue('https://sct.ftqq.com/')).toBeNull()
+    expect(detectChannelValue('随便什么')).toBeNull()
+  })
+
+  it('flags a telegram token that lacks a chat id', () => {
+    const det = detectChannelValue('123456:AAbbCCddEEffGGhhIIjjKKllMMnnOOppQQ')
+    expect(det?.type).toBe('telegram')
+    expect(det?.missing).toContain('chatId')
+  })
+
+  it('falls back to webhook for any other URL and builds from auto', () => {
+    expect(detectChannelValue('https://example.com/hook')?.type).toBe('webhook')
+    const call = buildHttpCall(ch('auto', { value: 'https://oapi.dingtalk.com/robot/send?access_token=X' }), message, 0)
+    expect(call.url).toBe('https://oapi.dingtalk.com/robot/send?access_token=X')
+    expect(() => buildHttpCall(ch('auto', { value: '随便什么' }), message, 0)).toThrow(ChannelBuildError)
   })
 })

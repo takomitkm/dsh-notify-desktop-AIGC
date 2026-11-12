@@ -207,6 +207,7 @@ the browser's localStorage), written via a temp file plus a rename. Restart the 
 
 | Channel | Required | Optional | Notes / example |
 |---|---|---|---|
+| Auto detect | paste anything* | — | Guesses from the host/prefix: group-bot URL, Server酱 key, Bark key, ntfy topic, any https → generic webhook; if it cannot tell, it tells you to pick a type |
 | Generic Webhook | URL* | headers (JSON) | POST `{title,message,level,scenario,source,timestamp}`; 2xx = success |
 | Bark | device key* | server/sound/group | server defaults to `https://api.day.app` |
 | ServerChan | SendKey* | — | `SCT…` (Turbo → `sctapi.ftqq.com`) or `sctp…` (Server酱³ → `{uid}.push.ft07.com`); copy the key from https://sct.ftqq.com |

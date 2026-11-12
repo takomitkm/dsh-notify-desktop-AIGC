@@ -13,6 +13,7 @@ import {
   CHANNEL_FIELDS,
   CHANNEL_TYPES,
   channelTypeKey,
+  detectChannelValue,
   type ChannelConfig,
   type ChannelType,
 } from '../channels.ts'
@@ -75,7 +76,7 @@ export function ChannelManager(props: { readonly t: Translate }): JSX.Element {
   const beginAdd = (): void => {
     setError(null)
     setNote(null)
-    setDraft(emptyDraft('webhook'))
+    setDraft(emptyDraft('auto'))
   }
 
   const beginEdit = (channel: ChannelConfig): void => {
@@ -260,6 +261,16 @@ export function ChannelManager(props: { readonly t: Translate }): JSX.Element {
               )}
             </div>
           ))}
+          {draftType === 'auto' ? (() => {
+            const raw = draft.fields['value'] ?? ''
+            if (raw.trim() === '') return null
+            const det = detectChannelValue(raw)
+            if (det === null) return <div className="dsh_notify_rowDesc">{t('settings.push.detectedUnknown')}</div>
+            if (det.missing.length > 0) {
+              return <div className="dsh_notify_rowDesc">{t('settings.push.detectedMissing', { type: typeName(det.type), fields: det.missing.join(', ') })}</div>
+            }
+            return <div className="dsh_notify_rowDesc">{t('settings.push.detected', { type: typeName(det.type) })}</div>
+          })() : null}
           <div className="dsh_notify_pushFormRow">
             <span className="dsh_notify_pushFormLabel">{t('settings.push.scenariosLabel')}</span>
             <span className="dsh_notify_pushScenarios">

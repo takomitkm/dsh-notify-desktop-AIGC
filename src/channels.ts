@@ -16,6 +16,7 @@ import { SCENARIO_IDS } from './scenarios.ts'
 
 /** Every channel kind this build can deliver to, in catalogue order. */
 export const CHANNEL_TYPES = Object.freeze([
+  'auto',
   'webhook',
   'bark',
   'serverchan',
@@ -76,6 +77,9 @@ function fields(list: ChannelField[]): readonly ChannelField[] {
 }
 
 export const CHANNEL_FIELDS: Readonly<Record<ChannelType, readonly ChannelField[]>> = Object.freeze({
+  auto: fields([
+    { key: 'value', labelKey: 'settings.push.field.value', required: true, placeholder: '粘贴 URL / key / token' },
+  ]),
   webhook: fields([
     { key: 'url', labelKey: 'settings.push.field.url', required: true, placeholder: 'https://example.com/hook' },
     { key: 'headers', labelKey: 'settings.push.field.headers', required: false, placeholder: '{"Authorization":"Bearer ..."}' },
@@ -314,4 +318,107 @@ export function normalizeChannel(value: unknown): ChannelConfig | null {
     bodyTemplate: typeof record['bodyTemplate'] === 'string' ? record['bodyTemplate'].slice(0, 1000) : '',
     markdown: record['markdown'] === true,
   }
+}
+
+/** One auto-detection result: the channel type a pasted value looks like. */
+export interface ChannelDetection {
+  readonly type: ChannelType
+  readonly fields: Record<string, string>
+  /** Required fields the pasted value does not provide (empty = usable as-is). */
+  readonly missing: string[]
+}
+
+/** Build a detection, computing which required fields are still blank. */
+function detected(type: ChannelType, fields: Record<string, string>): ChannelDetection {
+  const missing: string[] = []
+  for (const field of CHANNEL_FIELDS[type]) {
+    if (field.required && (fields[field.key] ?? '').trim() === '') missing.push(field.key)
+  }
+  return { type, fields, missing }
+}
+
+/** Decode one URL path segment, falling back to the raw text. */
+function segment(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+/**
+ * Guess which channel a pasted value belongs to.
+ *
+ * The "auto" channel lets the user paste one string — a group-bot webhook, a
+ * Server酱 key, a Bark device key, an ntfy topic URL, or any https URL — and
+ * this decides the concrete channel. URLs are matched by host; bare values only
+ * by an unmistakable prefix (`SCT…` / `sctp…` / `AT_…` / a Telegram bot token).
+ * A non-empty `missing` means the type was recognized but the paste cannot
+ * supply every required field (for example a Telegram bot token with no chat
+ * id). The console URLs (`sct.ftqq.com`, `sc3.ft07.com`) are not endpoints and
+ * read as unrecognized.
+ * @param raw - whatever the user pasted.
+ * @returns the detection, or null when nothing matches.
+ */
+export function detectChannelValue(raw: string): ChannelDetection | null {
+  const value = raw.trim()
+  if (value === '') return null
+  let url: URL | null = null
+  try {
+    url = new URL(value)
+  } catch {
+    url = null
+  }
+  if (url !== null) {
+    const host = url.hostname.toLowerCase()
+    const path = url.pathname
+    if (host === 'sct.ftqq.com' || host === 'sc3.ft07.com') return null
+    if (host === 'qyapi.weixin.qq.com' && url.searchParams.get('key') !== null) {
+      return detected('wecom', { key: url.searchParams.get('key') ?? '' })
+    }
+    if (host === 'oapi.dingtalk.com' && path.includes('/robot/send')) {
+      return detected('dingtalk', { url: value })
+    }
+    if ((host === 'open.feishu.cn' || host === 'open.larksuite.com' || host.endsWith('.feishu.cn') || host.endsWith('.larksuite.com')) && path.includes('/bot/v2/hook')) {
+      return detected('feishu', { url: value })
+    }
+    if (host === 'hooks.slack.com') return detected('slack', { url: value })
+    if ((host === 'discord.com' || host === 'discordapp.com') && path.includes('/api/webhooks/')) {
+      return detected('discord', { url: value })
+    }
+    if (host === 'sctapi.ftqq.com') {
+      const match = /^\/(.+)\.send$/.exec(path)
+      if (match !== null) return detected('serverchan', { sendKey: segment(match[1] ?? '') })
+      return detected('serverchan', {})
+    }
+    if (host.endsWith('.push.ft07.com') && path.startsWith('/send/')) {
+      const match = /^\/send\/(.+)\.send$/.exec(path)
+      if (match !== null) return detected('serverchan', { sendKey: segment(match[1] ?? '') })
+      return detected('serverchan', {})
+    }
+    if (host === 'api.day.app') {
+      const first = path.replace(/^\/+/, '').split('/')[0] ?? ''
+      if (first !== '') return detected('bark', { deviceKey: segment(first) })
+      return detected('bark', {})
+    }
+    if (host === 'ntfy.sh') {
+      const topic = path.replace(/^\/+/, '').split('/')[0] ?? ''
+      if (topic !== '') return detected('ntfy', { topic: segment(topic), server: 'https://ntfy.sh' })
+      return detected('ntfy', {})
+    }
+    if (host === 'qmsg.zendee.cn') {
+      const match = /^\/send\/(.+)$/.exec(path)
+      if (match !== null) return detected('qmsg', { key: segment(match[1] ?? '') })
+      return detected('qmsg', {})
+    }
+    if (path.includes('/message') && url.searchParams.get('token') !== null) {
+      return detected('gotify', { server: url.origin, token: url.searchParams.get('token') ?? '' })
+    }
+    // Any other http(s) URL is a generic webhook.
+    return detected('webhook', { url: value })
+  }
+  if (/^SCT/i.test(value) || /^sctp\d+t/i.test(value)) return detected('serverchan', { sendKey: value })
+  if (/^AT_[A-Za-z0-9]+$/.test(value)) return detected('wxpusher', { appToken: value })
+  if (/^\d{6,}:[A-Za-z0-9_-]{30,}$/.test(value)) return detected('telegram', { botToken: value })
+  return null
 }

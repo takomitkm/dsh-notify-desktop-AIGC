@@ -267,6 +267,11 @@ export declare const zh: {
     readonly 'settings.push.templatePlaceholder': "留空则沿用默认；可用 {工作区} {状态} {内容} {分钟}";
     readonly 'settings.push.markdownLabel': "Markdown 富文本";
     readonly 'settings.push.markdownHint': "该渠道支持时用 markdown 发送（企微/钉钉/飞书）";
+    readonly 'settings.push.type.auto': "自动识别";
+    readonly 'settings.push.field.value': "粘贴 URL / key / token";
+    readonly 'settings.push.detected': "识别为：{type}";
+    readonly 'settings.push.detectedMissing': "识别为 {type}，还需：{fields}（请改选该渠道填写）";
+    readonly 'settings.push.detectedUnknown': "无法识别，请改选具体渠道";
 };
 /** The dictionary key set. */
 export type NotifyKey = keyof typeof zh;
@@ -535,6 +540,11 @@ export declare const en: {
     'settings.push.templatePlaceholder': string;
     'settings.push.markdownLabel': string;
     'settings.push.markdownHint': string;
+    'settings.push.type.auto': string;
+    'settings.push.field.value': string;
+    'settings.push.detected': string;
+    'settings.push.detectedMissing': string;
+    'settings.push.detectedUnknown': string;
 };
 /** The locale namespace registered under ctx.locale. */
 export declare const NS = "notify";
