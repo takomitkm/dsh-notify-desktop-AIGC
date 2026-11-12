@@ -174,6 +174,26 @@ function need(channel: ChannelConfig, key: string, human: string): string {
 }
 
 /**
+ * Resolve a Server酱 SendKey into its API URL.
+ *
+ * The web console `https://sct.ftqq.com` is where you copy the key from — it is
+ * not a key and cannot be used here. Server酱Turbo keys start with `SCT` and
+ * post to `sctapi.ftqq.com`; Server酱³ keys start with `sctp<uid>t…` and post to
+ * `<uid>.push.ft07.com`, which is why the prefix decides the endpoint.
+ * @param sendKey - the SendKey the user pasted.
+ * @returns the API URL to POST to.
+ * @throws {ChannelBuildError} when an sctp key does not carry a uid.
+ */
+function serverchanUrl(sendKey: string): string {
+  if (sendKey.toLowerCase().startsWith('sctp')) {
+    const match = /^sctp(\d+)t/i.exec(sendKey)
+    if (match === null) throw new ChannelBuildError('Server酱³ SendKey should look like sctp<uid>t…')
+    return 'https://' + match[1] + '.push.ft07.com/send/' + enc(sendKey) + '.send'
+  }
+  return 'https://sctapi.ftqq.com/' + enc(sendKey) + '.send'
+}
+
+/**
  * Build the HTTP request for one channel.
  * @param channel - the configured channel.
  * @param message - the message to deliver.
@@ -226,7 +246,7 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
     case 'serverchan': {
       const sendKey = need(channel, 'sendKey', 'SendKey')
       return {
-        url: 'https://sctapi.ftqq.com/' + enc(sendKey) + '.send',
+        url: serverchanUrl(sendKey),
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' },
         body: 'title=' + enc(message.title) + '&desp=' + enc(joinedText(message)),

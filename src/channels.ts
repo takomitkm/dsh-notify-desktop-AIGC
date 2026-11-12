@@ -88,7 +88,7 @@ export const CHANNEL_FIELDS: Readonly<Record<ChannelType, readonly ChannelField[
     { key: 'group', labelKey: 'settings.push.field.barkGroup', required: false },
   ]),
   serverchan: fields([
-    { key: 'sendKey', labelKey: 'settings.push.field.sendKey', required: true, secret: true, kind: 'password', placeholder: 'SCT...' },
+    { key: 'sendKey', labelKey: 'settings.push.field.sendKey', required: true, secret: true, kind: 'password', placeholder: 'SCT… 或 sctp…' },
   ]),
   pushplus: fields([
     { key: 'token', labelKey: 'settings.push.field.token', required: true, secret: true, kind: 'password' },

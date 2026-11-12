@@ -209,7 +209,7 @@ the browser's localStorage), written via a temp file plus a rename. Restart the 
 |---|---|---|---|
 | Generic Webhook | URL* | headers (JSON) | POST `{title,message,level,scenario,source,timestamp}`; 2xx = success |
 | Bark | device key* | server/sound/group | server defaults to `https://api.day.app` |
-| ServerChan | SendKey* | — | Turbo `SCT…` (`sctapi.ftqq.com`) |
+| ServerChan | SendKey* | — | `SCT…` (Turbo → `sctapi.ftqq.com`) or `sctp…` (Server酱³ → `{uid}.push.ft07.com`); copy the key from https://sct.ftqq.com |
 | PushPlus | token* | topic | `www.pushplus.plus` |
 | WeCom | webhook key* | — | group-bot key |
 | DingTalk | URL* | signing secret | bot webhook; signing added when a secret is set |

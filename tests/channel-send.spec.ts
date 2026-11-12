@@ -76,6 +76,11 @@ describe('channel dispatch — request shapes', () => {
     expect(call.body).toContain('desp=')
   })
 
+  it('routes a Server酱³ sctp key to push.ft07.com', () => {
+    expect(buildHttpCall(ch('serverchan', { sendKey: 'sctp123tABC' }), message, 0).url).toBe('https://123.push.ft07.com/send/sctp123tABC.send')
+    expect(() => buildHttpCall(ch('serverchan', { sendKey: 'sctpBAD' }), message, 0)).toThrow(ChannelBuildError)
+  })
+
   it('builds pushplus and wecom payloads', () => {
     expect(buildHttpCall(ch('pushplus', { token: 'tk' }), message, 0).url).toBe('https://www.pushplus.plus/send')
     const wecom = buildHttpCall(ch('wecom', { key: 'k' }), message, 0)

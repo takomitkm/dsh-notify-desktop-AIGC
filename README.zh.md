@@ -181,7 +181,7 @@ scoop install ffmpeg           # 已装 Scoop
 |---|---|---|---|
 | 通用 Webhook | URL* | 请求头(JSON) | POST `{title,message,level,scenario,source,timestamp}`；2xx 即成功 |
 | Bark | 设备 Key* | 服务器/铃声/分组 | 服务器默认 `https://api.day.app` |
-| Server酱 | SendKey* | — | Turbo 版 `SCT…`（`sctapi.ftqq.com`） |
+| Server酱 | SendKey* | — | `SCT…`（Turbo → `sctapi.ftqq.com`）或 `sctp…`（Server酱³ → `{uid}.push.ft07.com`）；从 https://sct.ftqq.com 取 key |
 | PushPlus | Token* | 主题 | `www.pushplus.plus` |
 | 企业微信 | Webhook Key* | — | 群机器人的 key |
 | 钉钉 | URL* | 加签密钥 | 机器人 webhook；填密钥自动加签 |
