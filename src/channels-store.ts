@@ -58,6 +58,9 @@ export function readChannels(root: string): ChannelConfig[] {
   } catch {
     return []
   }
+  // A file re-saved by Notepad may carry a UTF-8 BOM; JSON.parse would throw
+  // and the whole list would read as empty, so strip it first.
+  raw = raw.replace(/^\uFEFF/, '')
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)

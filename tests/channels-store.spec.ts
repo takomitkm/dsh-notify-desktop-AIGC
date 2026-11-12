@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -75,5 +75,13 @@ describe('channels store', () => {
     if (!result.ok) return
     expect(result.channel.fields['deviceKey']).toBe('K')
     expect('bogus' in result.channel.fields).toBe(false)
+  })
+
+  it('tolerates a UTF-8 BOM written by an external editor', () => {
+    const seeded = saveChannel(root, { type: 'bark', enabled: true, fields: { deviceKey: 'K' } })
+    if (!seeded.ok) throw new Error('seed failed')
+    const file = channelsFile(root)
+    writeFileSync(file, '\uFEFF' + readFileSync(file, 'utf8'), 'utf8')
+    expect(readChannels(root).map(channel => channel.id)).toEqual([seeded.channel.id])
   })
 })
