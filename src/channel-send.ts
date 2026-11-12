@@ -329,9 +329,12 @@ export function buildHttpCall(channel: ChannelConfig, message: PushMessage, now:
       const server = base(f('server'), 'https://ntfy.sh')
       const headers: Record<string, string> = {
         'content-type': 'text/plain; charset=utf-8',
-        Title: message.title,
         Priority: ntfyPriority(message.level),
       }
+      // HTTP header values are latin-1; a non-ASCII title makes fetch throw
+      // before the request leaves, so only an ASCII title rides the header and
+      // a Chinese one stays in the body (which already starts with the title).
+      if (/^[\x20-\x7E]*$/.test(message.title)) headers['Title'] = message.title
       const token = f('token')
       if (token !== '') headers['Authorization'] = 'Bearer ' + token
       return { url: server + '/' + enc(topic), method: 'POST', headers, body: text, check: statusOk }

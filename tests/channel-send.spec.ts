@@ -279,4 +279,10 @@ describe('channel dispatch — format & targeting', () => {
     const errored = await dispatchChannels([errorOnly, allCh], { ...message, scenario: 'error' }, { fetchImpl })
     expect(errored).toHaveLength(2)
   })
+
+  it('keeps a non-ASCII title out of the ntfy header', () => {
+    const call = buildHttpCall(ch('ntfy', { topic: 't' }), { ...message, title: '工作区 · 任务完成' }, 0)
+    expect(call.headers['Title']).toBeUndefined()
+    expect(call.body).toContain('工作区 · 任务完成')
+  })
 })
